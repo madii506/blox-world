@@ -610,3 +610,26 @@ html.story::-webkit-scrollbar{display:none}
   animation:gDrop 1.1s cubic-bezier(.16,.9,.22,1.15) .2s backwards,gFloat 4.5s ease-in-out 1.3s infinite}
 @media (max-width:760px){.g-word{width:min(320px,82vw)}}
 @media (prefers-reduced-motion:reduce){.g-word{animation:none}}
+
+/* the gate header: BLOX as a clean neon sign that flickers on, then now and then */
+.g-title{margin:0 -.16em 0 0;display:flex;gap:0;font:800 clamp(78px,12.5vw,168px)/.86 Inter,ui-sans-serif,system-ui,sans-serif;letter-spacing:.16em;color:#fff7fd;
+  text-shadow:0 0 4px #fff,0 0 12px rgba(255,255,255,.85),0 0 26px #ff4f9e,0 0 52px #ff4f9e,0 0 90px #8a3fe2,0 0 140px #2f3fe4;
+  animation:gFloat 5s ease-in-out 2s infinite}
+.g-title span{display:inline-block;animation:neonOn 1.4s steps(1,end) backwards,flick 7s steps(1,end) infinite}
+.g-title span:nth-child(1){animation-delay:.25s,3.1s}.g-title span:nth-child(2){animation-delay:.45s,5.3s}
+.g-title span:nth-child(3){animation-delay:.6s,2.2s;animation-duration:1.4s,4.6s}.g-title span:nth-child(4){animation-delay:.35s,6.4s}
+@keyframes neonOn{0%{opacity:0;text-shadow:none}10%{opacity:.85}14%{opacity:.1;text-shadow:none}22%{opacity:1}30%{opacity:.25;text-shadow:none}38%{opacity:1}55%{opacity:.6}60%,100%{opacity:1}}
+@keyframes flick{0%,100%{opacity:1}41%{opacity:1}42%{opacity:.35;text-shadow:0 0 4px rgba(255,255,255,.5)}43%{opacity:1}45%{opacity:.5;text-shadow:none}46%,100%{opacity:1}}
+.gate .g-in{gap:40px}
+@media (max-width:760px){.g-title{font-size:min(19vw,92px);letter-spacing:.12em;margin-right:-.12em}.gate .g-in{gap:30px}}
+@media (prefers-reduced-motion:reduce){.g-title,.g-title span{animation:none}}
+
+/* one clean type voice across the world UI: Inter, upright, tight, no slant */
+.g-go,.s-roam{font:800 15px/1 Inter,sans-serif;letter-spacing:.14em}
+.g-go span,.s-roam span{transform:none;text-shadow:none}
+.g-wal{font:800 12.5px/1 Inter,sans-serif;letter-spacing:.14em}
+.sp h2{font:800 clamp(28px,2.9vw,42px)/1.02 Inter,sans-serif;letter-spacing:-.015em;transform:none;text-shadow:0 0 30px rgba(255,79,158,.25)}
+.st b,.sh-h b,.sm-top b,.hm-h b,.hc-h b{font-family:Inter,sans-serif;font-weight:800;transform:none;letter-spacing:-.01em}
+.hm-h b{text-shadow:0 0 22px rgba(255,210,63,.4)}
+.btn-steal,.btn-short{font:800 15px/1 Inter,sans-serif;letter-spacing:.12em}
+@media (max-width:760px){.sp h2{font-size:26px}}
