@@ -604,3 +604,9 @@ html.story::-webkit-scrollbar{display:none}
 .gate .g-logo{width:132px;height:132px}
 .s-roam{height:48px;padding:0 28px;font-size:17px}
 @media (max-width:760px){.g-go{height:46px;padding:0 26px;font-size:16px}.g-wal{height:44px;padding:0 20px;font-size:11.5px}.gate .g-logo{width:104px;height:104px}}
+
+/* the gate header: the whole name */
+.g-word{display:block;width:min(540px,80vw);height:auto;filter:drop-shadow(0 0 34px rgba(138,63,226,.85)) drop-shadow(0 14px 30px rgba(0,0,0,.45));
+  animation:gDrop 1.1s cubic-bezier(.16,.9,.22,1.15) .2s backwards,gFloat 4.5s ease-in-out 1.3s infinite}
+@media (max-width:760px){.g-word{width:min(320px,82vw)}}
+@media (prefers-reduced-motion:reduce){.g-word{animation:none}}
