@@ -461,7 +461,7 @@ addEventListener('pointermove', e => {
 
 // ---------------------------------------------------------------- start: the world module, then every feed
 function startWorld() {
-  import('./world.js?v=13').then(m => {
+  import('./world.js?v=14').then(m => {
     world = m.startWorld($('#world'), {
       reduced: reduced(), gate: !entered, onHover: tip, onFrame: w => { drawRadar(w); drawDrive(w); }, onWheel: () => roam(),
       onPick: it => { $('#hTip').hidden = true; if (it && it.kind === 'safehouse') { openWallets(); return; } if (!html.classList.contains('roam')) { if (it && it.kind) { roam(); setTimeout(() => card(it), 400); } return; } card(it && it.kind ? it : null); },
