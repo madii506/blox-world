@@ -23,15 +23,15 @@
 <meta name="twitter:image" content="https://blox-world-flax.vercel.app/og.png?v=2">
 <link rel="preload" href="/inter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/Inter-Black.otf" as="font" type="font/otf" crossorigin>
-<link rel="modulepreload" href="/world.js?v=8">
+<link rel="modulepreload" href="/world.js?v=9">
 <link rel="stylesheet" href="/app.css?v=1">
-<link rel="stylesheet" href="/blox.css?v=8">
+<link rel="stylesheet" href="/blox.css?v=10">
 <script>try{var h=location.hash.slice(1),st=JSON.parse(localStorage.getItem('bux:set')||'{}');if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&(!h||h==='map')&&!/[?&]t=/.test(location.search)&&st.intro!==false)document.documentElement.classList.add('gated')}catch(e){}</script>
 </head>
 <body>
 <!-- the world: a voxel Vice City at war. no landing page, the site opens here -->
 <canvas id="world" aria-label="BLOX: a voxel city where every live coin is a car"></canvas>
-<div class="gate" id="gate"><div class="g-in"><div class="g-ring" id="gRing"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="bg" cx="60" cy="60" r="55"/><circle class="fg" cx="60" cy="60" r="55" pathLength="100"/></svg><img class="g-logo" src="/favicon-192.png?v=2" alt="BLOX" width="112" height="112"></div><button class="g-go" id="enterGo" type="button"><span>Enter world</span></button><div class="g-stats"><span title="pump.fun coins on the streets"><svg viewBox="0 0 24 24"><path d="M5 15.5V12l1.8-4.2A2 2 0 0 1 8.6 6.5h6.8a2 2 0 0 1 1.8 1.3L19 12v3.5"/><rect x="3.5" y="12" width="17" height="4.5" rx="1.4"/><circle cx="7.5" cy="17.5" r="1.6"/><circle cx="16.5" cy="17.5" r="1.6"/></svg><b id="gCars">0</b></span><span title="Hyperliquid perps in the harbor"><svg viewBox="0 0 24 24"><path d="M3 15.5h18l-2.4 4H5.4z"/><path d="M12 3v12.5M12 4l6 9h-6"/></svg><b id="gBoats">0</b></span><span title="Whales overhead"><svg viewBox="0 0 24 24"><path d="M3 5.5h14M10 5.5V8"/><rect x="6.5" y="8" width="9" height="6" rx="3"/><path d="M15.5 11H21M8 14l-1 3.5h9"/></svg><b id="gWhales">0</b></span><span title="Crypto topics trending on X"><svg viewBox="0 0 24 24"><path d="M9 4 7 20M17 4l-2 16M4.5 9h16M3.5 15h16"/></svg><b id="gX">0</b></span></div></div></div>
+<div class="gate" id="gate"><div class="g-in"><img class="g-logo" src="/favicon-192.png?v=2" alt="BLOX" width="132" height="132"><div class="g-row"><button class="g-go" id="enterGo" type="button"><span>Enter world</span></button><button class="g-wal" id="gConnect" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12.5h2.5M3 9.5h18"/></svg><span>Connect wallet</span></button></div></div></div>
 <div id="hud">
   <div class="h-right">
     <div class="h-row"><button class="h-ic" id="hSearch" type="button" aria-label="Search coins and commands"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg></button><button class="h-connect" id="hConnect" type="button"><i class="dot"></i><span>Connect</span></button></div>
@@ -334,6 +334,6 @@
 <div class="pal" id="pal" hidden><div class="pal-in" role="dialog" aria-modal="true" aria-label="Search and commands"><label class="pal-q"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg><input id="palQ" type="text" placeholder="Search a coin, or type a command" autocomplete="off" spellcheck="false"><span class="kbd">esc</span></label><div class="pal-list" id="palList"></div></div></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <button class="fs-x mono" id="fsX" type="button">Exit full screen <span class="kbd">Esc</span></button>
-<script type="module" src="/main.js?v=8"></script>
+<script type="module" src="/main.js?v=10"></script>
 </body>
 </html>

@@ -343,13 +343,8 @@ const gated = startPage() === 'map';
 let entered = !gated;
 html.classList.toggle('gated', gated);
 const SEQ = ['streets', 'hot', 'drops', 'migrated', 'harbor', 'pier', 'whales', 'safehouse', 'mood', 'roam'];
-function paintGate() {
-  if (!html.classList.contains('gated')) return;
-  const ok = ['gems', 'hot', 'perps', 'ws', 'x'].filter(k => live[k]).length;
-  $('#gRing').style.setProperty('--p', (ok / 5 * 100).toFixed(0));
-  $('#gCars').textContent = n0(allCoins().length); $('#gBoats').textContent = n0(Math.min(30, perpList.length)); $('#gWhales').textContent = whales.length ? 3 : 0; $('#gX').textContent = n0(xTrends.length);
-}
-setInterval(paintGate, 1000);
+function paintGate() { }
+
 function enterWorld() {
   if (entered) return; entered = true;
   html.classList.remove('gated'); html.classList.add('story');
@@ -422,10 +417,17 @@ function roam() {
 }
 function tour() { if (!entered) return enterWorld(); card(null); html.classList.remove('roam', 'hud-in'); html.classList.add('story'); scrollTo(0, 0); if (world) { world.setStory(SEQ); world.story(0); } watchStory(); onScroll(); }
 $('#sSkip').onclick = roam;
+// the panels lean toward the pointer, a little
+addEventListener('pointermove', e => {
+  if (!html.classList.contains('story') || reduced() || e.pointerType !== 'mouse') return;
+  const sp = e.target.closest && e.target.closest('#story .sp'); $$('#story .sp').forEach(p => { if (p !== sp) { p.style.removeProperty('--rx'); p.style.removeProperty('--ry'); } });
+  if (!sp) return; const r = sp.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+  sp.style.setProperty('--rx', (-y * 6).toFixed(2) + 'deg'); sp.style.setProperty('--ry', (x * 8).toFixed(2) + 'deg');
+}, { passive: true });
 
 // ---------------------------------------------------------------- start: the world module, then every feed
 function startWorld() {
-  import('./world.js?v=8').then(m => {
+  import('./world.js?v=9').then(m => {
     world = m.startWorld($('#world'), {
       reduced: reduced(), gate: !entered, onHover: tip, onFrame: drawRadar,
       onPick: it => { $('#hTip').hidden = true; if (it && it.kind === 'safehouse') { openWallets(); return; } if (!html.classList.contains('roam')) { if (it && it.kind) { roam(); setTimeout(() => card(it), 400); } return; } card(it && it.kind ? it : null); },
@@ -462,6 +464,7 @@ $('#hMis').onclick = () => { if ($('#hMissions').hidden) openMissions(); else $(
 setInterval(() => { const n = missions().length; $('#hMisN').textContent = n; $('#hMis').classList.toggle('live', n > 0); }, 3000);
 $('#hConnect').onclick = () => openWallets();
 $('#sConnect').onclick = () => openWallets();
+$('#gConnect').onclick = () => openWallets();
 $('#hSearch').onclick = () => openPalette();
 $('#homeBtn').onclick = () => go('map');
 addEventListener('keydown', e => { if (e.key === 'Escape' && html.classList.contains('panel') && $('#modal').hidden && $('#pal').hidden) go('map'); });
@@ -522,7 +525,8 @@ window.__wallets = openWallets;
 const navW = () => {
   const n = (W.sol.address ? 1 : 0) + (W.evm.address ? 1 : 0);
   const label = n === 0 ? 'Connect' : n === 2 ? 'Both connected' : W.sol.address ? short(W.sol.address) : short(W.evm.address);
-  for (const b of [$('#connectBtn'), $('#hConnect')]) { b.classList.toggle('on', n > 0); b.querySelector('span').textContent = label; }
+  for (const b of [$('#connectBtn'), $('#hConnect'), $('#gConnect')]) { b.classList.toggle('on', n > 0); b.querySelector('span').textContent = b.id === 'gConnect' && n === 0 ? 'Connect wallet' : label; }
+  $('#sConnect').textContent = n === 0 ? 'Connect' : label;
 };
 on('sol', navW); on('evm', navW);
 setTimeout(async () => {                            // quiet reconnect of wallets this browser used before
