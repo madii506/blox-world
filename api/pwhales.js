@@ -61,12 +61,21 @@ async function wallet(a) {
   });
   return { a, sol: bal && bal.value != null ? bal.value / 1e9 : null, trades };
 }
+// tickers and logos for every coin they traded, in one lookup (Jupiter; pump.fun's own record for any it doesn't know)
+async function getJson(u, ms) { try { const r = await fetch(u, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(ms) }); return r.ok ? await r.json() : null; } catch { return null; } }
+async function names(rows) {
+  const mints = [...new Set(rows.flatMap(r => r.trades.map(t => t.mint)))], by = new Map(); if (!mints.length) return;
+  const a = await getJson('https://lite-api.jup.ag/tokens/v2/search?query=' + mints.slice(0, 90).join(','), 5000);
+  if (Array.isArray(a)) for (const t of a) if (t && t.id && t.symbol) by.set(t.id, { sym: String(t.symbol).slice(0, 14), icon: t.icon || '' });
+  await Promise.all(mints.filter(m => !by.has(m) && /pump$/.test(m)).slice(0, 6).map(async m => { const j = await getJson('https://frontend-api-v3.pump.fun/coins/' + m, 3000); if (j && j.symbol) by.set(m, { sym: String(j.symbol).slice(0, 14), icon: j.image_uri || '' }); }));
+  for (const r of rows) for (const t of r.trades) { const v = by.get(t.mint); if (v) { t.sym = v.sym; t.icon = v.icon; } }
+}
 module.exports = async (req, res) => {
   const list = String(req.query.a || '').split(',').map(s => s.trim()).filter(s => B58.test(s)).slice(0, 5);
   res.setHeader('content-type', 'application/json; charset=utf-8');
   if (!list.length) { res.statusCode = 400; return res.end('{"rows":[]}'); }
   try {
-    const rows = await Promise.all(list.map(wallet));
+    const rows = await Promise.all(list.map(wallet)); await names(rows);
     res.setHeader('cache-control', 'public, s-maxage=40, stale-while-revalidate=120');
     res.end(JSON.stringify({ at: Date.now(), rows }));
   } catch {
