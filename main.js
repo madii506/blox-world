@@ -117,8 +117,8 @@ async function symOf(mint) {
   const c = findCoin(mint); if (c) return { symbol: c.symbol, iconUrl: c.iconUrl };
   if (symCache.has(mint)) return symCache.get(mint);
   let v = { symbol: short(mint), iconUrl: img('', mint) };
-  try { const r = await api.tokens([mint]); const t = r && r[0]; if (t && t.symbol) v = { symbol: String(t.symbol).slice(0, 14), iconUrl: img(t.icon, mint) }; } catch { }
-  symCache.set(mint, v); return v;
+  try { const r = await api.tokens([mint]); const t = r && r[0]; if (t && t.symbol) { v = { symbol: String(t.symbol).slice(0, 14), iconUrl: img(t.icon, mint) }; symCache.set(mint, v); } } catch { }
+  return v;                         // a miss (often a rate limit) is not remembered, so the next refresh tries again
 }
 async function symPrime(mints) {     // one Jupiter lookup for every unknown mint instead of one each
   const need = [...new Set(mints)].filter(m => m && !findCoin(m) && !symCache.has(m)); if (!need.length) return;
@@ -135,10 +135,10 @@ async function loadWhales() {
   }));
   try {
     const d = await jx('/api/pwhales?a=' + PW.map(w => w.a).join(','), {}, 20000);
-    for (const r of d.rows || []) { const w = PW.find(x => x.a === r.a); if (!w) continue; if (w.sol == null && r.sol != null) w.sol = r.sol; for (const t of r.trades || []) if (!w.trades.some(x => x.sig === t.sig)) w.trades.push(t); w.trades.sort((a, b) => b.t - a.t); w.trades.length = Math.min(w.trades.length, 12); }
+    for (const r of d.rows || []) { const w = PW.find(x => x.a === r.a); if (!w) continue; if (w.sol == null && r.sol != null) w.sol = r.sol; for (const t of r.trades || []) { const o = w.trades.find(x => x.sig === t.sig); if (o) { if (t.sym && (!o.sym || o.sym.includes('…'))) { o.sym = t.sym; o.iconUrl = img(t.icon, t.mint); } } else { if (t.sym) t.iconUrl = img(t.icon, t.mint); w.trades.push(t); } } w.trades.sort((a, b) => b.t - a.t); w.trades.length = Math.min(w.trades.length, 12); }
   } catch { }
-  await symPrime(PW.flatMap(w => w.trades.filter(t => !t.sym).map(t => t.mint)));
-  await Promise.all(PW.flatMap(w => w.trades.filter(t => !t.sym).map(async t => { const v = await symOf(t.mint); t.sym = v.symbol; t.iconUrl = v.iconUrl; })));
+  await symPrime(PW.flatMap(w => w.trades.filter(t => !t.sym || t.sym.includes('…')).map(t => t.mint)));
+  await Promise.all(PW.flatMap(w => w.trades.filter(t => !t.sym || t.sym.includes('…')).map(async t => { const v = await symOf(t.mint); t.sym = v.symbol; t.iconUrl = v.iconUrl; })));
   paintWhales();
 }
 function paintWhales() { if (world && world.setWhales) world.setWhales(PW.map(w => ({ a: w.a, n: w.n, sol: w.sol, last: w.trades[0] || null }))); paintStory(); }
