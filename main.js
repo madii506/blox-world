@@ -51,7 +51,7 @@ const isPump = t => t && (t.launchpad === 'pump.fun' || /pump$/.test(t.mint || '
 const solUsd = () => api.mids.SOL || (api.perps.by.SOL || {}).mark || null;
 function shape(t, cat, hmax) {
   const h = hmax ? heatOf(t) / hmax : 0, s5 = t.s5m || {}, s1 = t.s1h || {}, has5 = s5.priceChange != null, ch = has5 ? s5.priceChange : s1.priceChange;
-  return { ...t, cat, isNew: cat === 'new', iconUrl: t.iconUrl || (t.icon ? img(t.icon, t.mint) : ''), heat: h, stars: Math.max(1, Math.min(5, Math.ceil(h * 5))), up: (ch || 0) >= 0, chg: ch ?? null, tf: has5 ? '5 min' : '1 hour' };
+  return { ...t, cat, isNew: cat === 'new', iconUrl: t.iconUrl || img(t.icon, t.mint), heat: h, stars: Math.max(1, Math.min(5, Math.ceil(h * 5))), up: (ch || 0) >= 0, chg: ch ?? null, tf: has5 ? '5 min' : '1 hour' };
 }
 // Jupiter's gems feed carries pump.fun's three boards; the token sits in baseAsset
 const fromGem = (p, cat) => { const b = p.baseAsset || {}; return { mint: b.id, name: b.name || '', symbol: b.symbol || '', icon: /^https:\/\//.test(b.icon || '') ? b.icon : '', mcap: +(b.mcap ?? b.fdv) || null, liq: b.liquidity ?? null, holders: b.holderCount ?? null,
@@ -59,7 +59,17 @@ const fromGem = (p, cat) => { const b = p.baseAsset || {}; return { mint: b.id, 
 async function jx(url, opt = {}, ms = 12000) { const c = new AbortController(), t = setTimeout(() => c.abort(), ms); try { const r = await fetch(url, { ...opt, signal: c.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); } finally { clearTimeout(t); } }
 const n0 = v => v == null || !isFinite(v) ? '—' : Math.round(v).toLocaleString('en-US');
 const hbar = n => `<span class="hbar" aria-label="heat ${n} of 5">${[0, 1, 2, 3, 4].map(k => `<i${k < n ? ' class="on"' : ''}></i>`).join('')}</span>`;
-const ava = (c, big) => c.iconUrl ? `<img src="${esc(c.iconUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<i class="ava${big ? ' big' : ''}">${esc((c.symbol || '?').slice(0, 2))}</i>`;
+// a coin's logo; if it can't be loaded, a letter badge in the coin's own colour takes its place (and the logo is tried once more)
+const hueOf = s => { let h = 0; s = String(s || ''); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h % 360; };
+const imgFix = new Map();                                                           // logo url → '' (no logo) or the url that loaded on a retry
+const avaFb = (c, big) => `<i class="ava${big ? ' big' : ''}" style="--h:${hueOf(c.mint || c.symbol)}">${esc((c.symbol || '?').slice(0, 2))}</i>`;
+const ava = (c, big) => { const u = c.iconUrl && imgFix.has(c.iconUrl) ? imgFix.get(c.iconUrl) : c.iconUrl; return u ? `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-sym="${esc((c.symbol || '?').slice(0, 2))}" data-h="${hueOf(c.mint || c.symbol)}" data-o="${esc(c.iconUrl)}"${big ? ' data-big="1"' : ''}>` : avaFb(c, big); };
+document.addEventListener('error', e => {
+  const im = e.target; if (!(im instanceof HTMLImageElement) || !im.dataset.sym) return;
+  const i = document.createElement('i'); i.className = 'ava' + (im.dataset.big ? ' big' : ''); i.style.setProperty('--h', im.dataset.h || 260); i.textContent = im.dataset.sym; im.replaceWith(i);
+  const o = im.dataset.o || im.getAttribute('src'); if (imgFix.has(o)) return; imgFix.set(o, '');
+  setTimeout(() => { const t = new Image(); t.referrerPolicy = 'no-referrer'; t.onload = () => { imgFix.set(o, t.src); if (i.isConnected) { im.src = t.src; i.replaceWith(im); } }; t.src = o + (o.includes('?') ? '&' : '?') + 'r=' + Date.now() % 1e5; }, 9000);
+}, true);
 const pava = p => `<i class="ava perp">${esc(p.name.replace(/^k/, '').slice(0, 3))}</i>`;
 const wname = w => w.n ? w.n : short(w.a);
 const money = v => (v < 0 ? '-' : '+') + usd(Math.abs(v));
@@ -124,9 +134,10 @@ function pumpStream() {
 }
 function onLaunch(d) {
   if (!d.symbol || BAD.test(d.symbol + ' ' + (d.name || ''))) return;
-  const sol = solUsd(), t = { mint: d.mint, name: d.name || '', symbol: String(d.symbol).slice(0, 14), mcap: d.marketCapSol && sol ? d.marketCapSol * sol : null, created: Date.now(), s5m: {}, s1h: {}, uri: d.uri, iconUrl: '' };
+  // its logo comes out of its metadata, read by our proxy (racing IPFS gateways) so it shows the moment the car arrives
+  const meta = /^(https|ipfs|ar):\/\//.test(d.uri || '') ? '/api/img?j=' + encodeURIComponent(d.uri) + '&m=' + d.mint : img('', d.mint);
+  const sol = solUsd(), t = { mint: d.mint, name: d.name || '', symbol: String(d.symbol).slice(0, 14), mcap: d.marketCapSol && sol ? d.marketCapSol * sol : null, created: Date.now(), s5m: {}, s1h: {}, uri: d.uri, iconUrl: meta };
   launches.unshift(t); if (launches.length > 30) launches.pop();
-  if (/^https:\/\//.test(d.uri || '')) jx(d.uri, {}, 6000).then(m => { if (m && /^https:\/\//.test(m.image || '')) { t.iconUrl = img(m.image, t.mint); const c = F.new.find(x => x.mint === t.mint); if (c) c.iconUrl = t.iconUrl; paintStory(); } }).catch(() => { });
   latestLaunch = t; launchN++;
   const c = shape(t, 'new'); F.new = [c, ...F.new.filter(x => x.mint !== t.mint)].slice(0, 24);
   syncSoon(); paintStory();
@@ -427,7 +438,7 @@ addEventListener('pointermove', e => {
 
 // ---------------------------------------------------------------- start: the world module, then every feed
 function startWorld() {
-  import('./world.js?v=10').then(m => {
+  import('./world.js?v=11').then(m => {
     world = m.startWorld($('#world'), {
       reduced: reduced(), gate: !entered, onHover: tip, onFrame: drawRadar,
       onPick: it => { $('#hTip').hidden = true; if (it && it.kind === 'safehouse') { openWallets(); return; } if (!html.classList.contains('roam')) { if (it && it.kind) { roam(); setTimeout(() => card(it), 400); } return; } card(it && it.kind ? it : null); },

@@ -58,7 +58,7 @@ export async function copy(text) { try { await navigator.clipboard.writeText(tex
 // token art through our proxy; with the mint it can still find the logo when the link itself is dead
 export const img = (url, mint) => {
   const q = [];
-  if (/^https:\/\//.test(url || '')) q.push('u=' + encodeURIComponent(url));
+  if (/^(https|ipfs|ar):\/\//.test(url || '')) q.push('u=' + encodeURIComponent(url));
   if (mint && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint)) q.push('m=' + mint);
   return q.length ? '/api/img?' + q.join('&') : (url || '');
 };
