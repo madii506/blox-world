@@ -1,12 +1,14 @@
-// BUX · same-origin image proxy for token art: WebGL can draw it (textures need CORS) and lists load from the edge cache.
-// Any public https host. IPFS and Arweave links race several gateways at once; if the link is dead, the mint's logo
-// is looked up elsewhere (Trust Wallet's asset repo, GeckoTerminal). Private networks are never fetched.
+// BLOX · same-origin image proxy for coin logos: WebGL can draw them (textures need CORS) and lists load from the edge cache.
+// Any public https host. IPFS and Arweave links race several gateways at once. With j= (a coin's metadata JSON, the way
+// brand-new pump.fun coins arrive) the logo is read out of the metadata; with m= (the mint) a dead or missing link falls back
+// to the coin's record at Jupiter, pump.fun, GeckoTerminal, DexScreener and Trust Wallet. Private networks are never fetched.
 const dns = require('dns').promises;
 const net = require('net');
 
-const MAX = 8e6, UA = { 'user-agent': 'Mozilla/5.0 (compatible; bux-img/1)', accept: 'image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5' };
+const MAX = 8e6, UA = { 'user-agent': 'Mozilla/5.0 (compatible; blox-img/2)' };
+const IMG_ACCEPT = 'image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5';
 const MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-const IPFS_GW = ['https://pump.mypinata.cloud/ipfs/', 'https://ipfs.io/ipfs/', 'https://dweb.link/ipfs/', 'https://w3s.link/ipfs/', 'https://nftstorage.link/ipfs/', 'https://ipfs.filebase.io/ipfs/'];
+const IPFS_GW = ['https://pump.mypinata.cloud/ipfs/', 'https://ipfs.io/ipfs/', 'https://dweb.link/ipfs/', 'https://w3s.link/ipfs/', 'https://nftstorage.link/ipfs/', 'https://ipfs.filebase.io/ipfs/', 'https://gateway.pinata.cloud/ipfs/'];
 const AR_GW = ['https://arweave.net/', 'https://ar-io.net/', 'https://permagate.io/', 'https://gateway.irys.xyz/'];
 
 const sniff = b => b[0] === 0x89 && b[1] === 0x50 ? 'image/png' : b[0] === 0xff && b[1] === 0xd8 ? 'image/jpeg' : b[0] === 0x47 && b[1] === 0x49 ? 'image/gif'
@@ -33,31 +35,54 @@ async function safe(u) {
   try { const a = await dns.lookup(h, { all: true }); ok = a.length > 0 && a.every(x => !privateIp(x.address)); } catch {}
   hostOk.set(h, ok); return ok;
 }
+// ipfs:// and ar:// links become gateway links; anything that is not https is dropped
+function toUrl(s) {
+  if (!s || typeof s !== 'string') return null; s = s.trim();
+  if (/^ipfs:\/\//i.test(s)) s = 'https://ipfs.io/ipfs/' + s.replace(/^ipfs:\/\/(ipfs\/)?/i, '');
+  else if (/^ar:\/\//i.test(s)) s = 'https://arweave.net/' + s.slice(5);
+  try { const u = new URL(s); return u.protocol === 'https:' ? u : null; } catch { return null; }
+}
 
-// one candidate: follow up to 3 redirects by hand (each hop checked), read it, make sure it really is an image
-async function grab(href, signal) {
+// one request: follow up to 3 redirects by hand (each hop checked)
+async function fetchSafe(href, signal, accept) {
   let url = new URL(href);
   for (let hop = 0; hop < 4; hop++) {
     if (!(await safe(url))) throw new Error('blocked');
-    const r = await fetch(url, { signal, headers: UA, redirect: 'manual' });
+    const r = await fetch(url, { signal, headers: { ...UA, accept }, redirect: 'manual' });
     if (r.status >= 300 && r.status < 400 && r.headers.get('location')) { url = new URL(r.headers.get('location'), url); continue; }
     if (!r.ok) throw new Error('http ' + r.status);
-    if (+r.headers.get('content-length') > MAX) throw new Error('too big');
-    const buf = Buffer.from(await r.arrayBuffer());
-    if (!buf.length || buf.length > MAX) throw new Error('size');
-    const ct = sniff(buf); if (!ct) throw new Error('not an image');
-    return { buf, ct };
+    return r;
   }
   throw new Error('redirects');
 }
-// the first good answer wins, the rest are cancelled
-async function first(hrefs, ms) {
-  const list = [...new Set(hrefs.filter(Boolean))]; if (!list.length) return null;
-  const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
-  try { return await Promise.any(list.map(h => grab(h, c.signal))); } catch { return null; } finally { clearTimeout(t); c.abort(); }
+// an image: read it and make sure it really is one
+async function grab(href, signal) {
+  const r = await fetchSafe(href, signal, IMG_ACCEPT);
+  if (+r.headers.get('content-length') > MAX) throw new Error('too big');
+  const buf = Buffer.from(await r.arrayBuffer());
+  if (!buf.length || buf.length > MAX) throw new Error('size');
+  const ct = sniff(buf); if (!ct) throw new Error('not an image');
+  return { buf, ct };
 }
+// a token's metadata JSON: the logo link inside it
+async function grabMeta(href, signal) {
+  const r = await fetchSafe(href, signal, 'application/json,*/*;q=0.5');
+  const t = await r.text(); if (t.length > 4e5) throw new Error('size');
+  const j = JSON.parse(t), f = j && j.properties && Array.isArray(j.properties.files) && j.properties.files[0];
+  const im = j && (j.image || j.image_uri || j.imageUrl || j.logo || j.icon || (f && (f.uri || (typeof f === 'string' ? f : ''))));
+  if (!toUrl(im)) throw new Error('no image');
+  return im;
+}
+// the first good answer wins, the rest are cancelled
+async function race(hrefs, ms, fn) {
+  const list = [...new Set(hrefs.filter(Boolean))]; if (!list.length || ms <= 0) return null;
+  const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
+  try { return await Promise.any(list.map(h => fn(h, c.signal))); } catch { return null; } finally { clearTimeout(t); c.abort(); }
+}
+const first = (hrefs, ms) => race(hrefs, ms, grab);
 // the same file on other gateways
 function mirrors(u) {
+  if (!u) return [];
   const out = [u.href];
   let m = u.pathname.match(/\/ipfs\/([^/?#]+)(\/[^?#]*)?/);
   let cid = m && m[1], rest = (m && m[2]) || '';
@@ -67,17 +92,37 @@ function mirrors(u) {
   if (ar) AR_GW.forEach(g => out.push(g + ar[1] + (ar[2] || '')));
   return out;
 }
+const metaMirrors = u => mirrors(u).map(h => h.replace(/\?img-width=512&img-dpr=1$/, ''));
+
+async function json(href, ms) {
+  const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
+  try { const r = await fetch(href, { signal: c.signal, headers: { accept: 'application/json', 'user-agent': UA['user-agent'] } }); return r.ok ? await r.json() : null; } catch { return null; } finally { clearTimeout(t); }
+}
+// the logo by mint: every public record of the coin at once, then the first image that loads
+async function byMint(mint, ms) {
+  const end = Date.now() + ms, left = () => Math.max(800, end - Date.now());
+  const look = await Promise.all([
+    json(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`, 2600).then(a => { const t = Array.isArray(a) && a.find(x => x && x.id === mint); return t && t.icon; }),
+    /pump$/.test(mint) ? json(`https://frontend-api-v3.pump.fun/coins/${mint}`, 2600).then(j => j && j.image_uri) : null,
+    json(`https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}`, 2600).then(j => j && j.data && j.data.attributes && j.data.attributes.image_url),
+    json(`https://api.dexscreener.com/tokens/v1/solana/${mint}`, 2600).then(a => Array.isArray(a) && a[0] && a[0].info && a[0].info.imageUrl),
+  ]);
+  const hrefs = [];
+  for (const s of look) { const u = toUrl(s); if (u && !/missing/i.test(u.href)) hrefs.push(...mirrors(u)); }
+  hrefs.push(`https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/assets/${mint}/logo.png`);
+  return first(hrefs, left());
+}
+
 module.exports = async (req, res) => {
-  const t0 = Date.now();
-  const raw = String(req.query.u || ''), mint = MINT.test(String(req.query.m || '')) ? String(req.query.m) : null;
-  let u = null;
-  if (raw) { try { u = new URL(raw); } catch { u = null; } }
-  if (!u && !mint) { res.statusCode = 400; return res.end(); }
-  let got = u && u.protocol === 'https:' ? await first(mirrors(u), mint ? 4000 : 6000) : null;   // with a mint there is a plan B, so give up on a dead link sooner
-  if (!got && mint) got = await gecko(mint, Math.max(1500, 9000 - (Date.now() - t0)));
+  const t0 = Date.now(), left = () => 15000 - (Date.now() - t0);
+  const u = toUrl(String(req.query.u || '')), j = toUrl(String(req.query.j || '')), mint = MINT.test(String(req.query.m || '')) ? String(req.query.m) : null;
+  if (!u && !j && !mint) { res.statusCode = 400; return res.end(); }
+  let got = u ? await first(mirrors(u), j || mint ? 5000 : 9000) : null;          // with a plan B, give up on a dead link sooner
+  if (!got && j) { const im = await race(metaMirrors(j), Math.min(5000, left()), grabMeta); if (im) got = await first(mirrors(toUrl(im)), Math.min(6000, left())); }
+  if (!got && mint) got = await byMint(mint, Math.max(1500, left()));
   if (!got) {
     res.statusCode = 404;
-    res.setHeader('Cache-Control', 'public, max-age=120, s-maxage=600');
+    res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=60');           // brand-new coins: their logo may land on IPFS a minute later
     return res.end();
   }
   res.setHeader('Content-Type', got.ct);
@@ -88,24 +133,4 @@ module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=2592000, stale-while-revalidate=604800');
   return res.end(got.buf);
 };
-
-// the logo by mint: Trust Wallet's asset repo, then pump.fun's own record (brand-new coins), then GeckoTerminal
-async function json(href, ms) {
-  const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
-  try { const r = await fetch(href, { signal: c.signal, headers: { accept: 'application/json', 'user-agent': UA['user-agent'] } }); return r.ok ? await r.json() : null; } catch { return null; } finally { clearTimeout(t); }
-}
-async function gecko(mint, ms) {
-  const end = Date.now() + ms, left = () => Math.max(700, end - Date.now());
-  const tw = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/assets/${mint}/logo.png`;
-  const a = await first([tw], Math.min(2000, left())); if (a) return a;
-  const look = [];
-  if (/pump$/.test(mint)) look.push(json(`https://frontend-api-v3.pump.fun/coins/${mint}`, Math.min(2500, left())).then(j => j && j.image_uri));
-  look.push(json(`https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}`, Math.min(2500, left())).then(j => j && j.data && j.data.attributes && j.data.attributes.image_url));
-  for (const img of await Promise.all(look)) {
-    if (!img || /missing/i.test(img) || !/^https:\/\//.test(img)) continue;
-    let u; try { u = new URL(img); } catch { continue; }
-    const got = await first(mirrors(u), left()); if (got) return got;
-  }
-  return null;
-}
-module.exports._t = { mirrors, privateIp, sniff, safe };
+module.exports._t = { mirrors, privateIp, sniff, safe, toUrl };
