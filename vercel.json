@@ -35,6 +35,9 @@
   "functions": {
     "api/img.js": {
       "maxDuration": 20
+    },
+    "api/pwhales.js": {
+      "maxDuration": 30
     }
   }
 }

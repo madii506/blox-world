@@ -1,4 +1,4 @@
-// BLOX · boot: no landing page. The site opens on the streets (a voxel city where every live coin is a car); every terminal page is an app on the phone that opens over it
+// BLOX · boot: no landing page. The site opens on the streets (a voxel city where every live coin is a character and you drive); every terminal page is an app on the phone that opens over it
 import { $, $$, on, esc, store, short, toast, CONFIG, copy, px, usd, icon, brand, reduced, img, cls, pct } from './core.js';
 import * as api from './api.js';
 import * as W from './wallet.js';
@@ -109,8 +109,44 @@ function mood() {
   if (!all) return; moodV = up / all; if (world) world.setMood(moodV);
 }
 on('perps', P => { perpList = (P.list || []).filter(p => p.oi > 0).sort((a, b) => b.oi - a.oi); live.perps = Date.now(); if (world) world.setPerps(perpList); paint(); });
+// pump.fun whales: known traders' public wallets. Balance and biggest bags from Jupiter, recent trades read from Solana by
+// /api/pwhales, and every new buy or sell live from PumpPortal's stream the second it lands
+const PW = [{ a: '2fg5QD1eD7rzNNCsvnhmXFm5hqNgwTTG8p7kQ6f3rx6f', n: 'Cupsey' }, { a: 'CyaE1VxvBrahnPWkqm5VsdCvyS2QmNht2UFrKJHga54o', n: 'Cented' }].map(w => ({ ...w, sol: null, bags: [], trades: [] }));
+const PWset = new Set(PW.map(w => w.a)), symCache = new Map();
+async function symOf(mint) {
+  const c = findCoin(mint); if (c) return { symbol: c.symbol, iconUrl: c.iconUrl };
+  if (symCache.has(mint)) return symCache.get(mint);
+  let v = { symbol: short(mint), iconUrl: img('', mint) };
+  try { const r = await api.tokens([mint]); const t = r && r[0]; if (t && t.symbol) v = { symbol: String(t.symbol).slice(0, 14), iconUrl: img(t.icon, mint) }; } catch { }
+  symCache.set(mint, v); return v;
+}
+async function symPrime(mints) {     // one Jupiter lookup for every unknown mint instead of one each
+  const need = [...new Set(mints)].filter(m => m && !findCoin(m) && !symCache.has(m)); if (!need.length) return;
+  try { for (const t of await api.tokens(need)) if (t && t.mint && t.symbol) symCache.set(t.mint, { symbol: String(t.symbol).slice(0, 14), iconUrl: img(t.icon, t.mint) }); } catch { }
+}
 async function loadWhales() {
-  try { const d = await jx('/api/whales?win=day&sort=pnl'); whales = (d.rows || []).slice(0, 20).map(x => ({ a: x.a, n: x.n, v: x.v, pnl: x.p[0], roi: x.p[1], vlm: x.p[2] })); if (world) world.setWhales(whales.slice(0, 3)); paint(); } catch { }
+  await Promise.allSettled(PW.map(async w => {
+    const h = await api.holdings(w.a); if (!h) return; if (h.uiAmount != null) w.sol = +h.uiAmount;
+    const toks = Object.entries(h.tokens || {}).map(([mint, accs]) => ({ mint, ui: (accs || []).reduce((s, x) => s + (+x.uiAmount || 0), 0) })).filter(x => x.ui > 0 && !/^So1111/.test(x.mint));
+    if (!toks.length) { w.bags = []; return; }
+    const px = await api.price(toks.slice(0, 50).map(x => x.mint)).catch(() => ({}));
+    w.bags = toks.map(x => ({ ...x, usd: x.ui * (((px || {})[x.mint] || {}).usdPrice || 0) })).filter(x => x.usd > 1).sort((a, b) => b.usd - a.usd).slice(0, 4);
+    await symPrime(w.bags.map(b => b.mint)); for (const b of w.bags) { const v = await symOf(b.mint); b.sym = v.symbol; b.iconUrl = v.iconUrl; }
+  }));
+  try {
+    const d = await jx('/api/pwhales?a=' + PW.map(w => w.a).join(','), {}, 20000);
+    for (const r of d.rows || []) { const w = PW.find(x => x.a === r.a); if (!w) continue; if (w.sol == null && r.sol != null) w.sol = r.sol; for (const t of r.trades || []) if (!w.trades.some(x => x.sig === t.sig)) w.trades.push(t); w.trades.sort((a, b) => b.t - a.t); w.trades.length = Math.min(w.trades.length, 12); }
+  } catch { }
+  await symPrime(PW.flatMap(w => w.trades.filter(t => !t.sym).map(t => t.mint)));
+  await Promise.all(PW.flatMap(w => w.trades.filter(t => !t.sym).map(async t => { const v = await symOf(t.mint); t.sym = v.symbol; t.iconUrl = v.iconUrl; })));
+  paintWhales();
+}
+function paintWhales() { if (world && world.setWhales) world.setWhales(PW.map(w => ({ a: w.a, n: w.n, sol: w.sol, last: w.trades[0] || null }))); paintStory(); }
+async function onWhaleTrade(d) {
+  const w = PW.find(x => x.a === d.traderPublicKey); if (!w || w.trades.some(x => x.sig === d.signature)) return;
+  const v = await symOf(d.mint), t = { sig: d.signature, t: Date.now(), mint: d.mint, side: d.txType, sol: +d.solAmount || 0, sym: v.symbol, iconUrl: v.iconUrl };
+  w.trades.unshift(t); w.trades.length = Math.min(w.trades.length, 12);
+  queue({ kind: 'whale', w, t, urgent: true }); paintWhales();
 }
 // X's crypto trends, read from the public trend lists of a dozen countries and filtered down to crypto
 async function loadTrends() {
@@ -121,9 +157,10 @@ function pumpStream() {
   let ws = null, tries = 0;
   const open = () => {
     try { ws = new WebSocket('wss://pumpportal.fun/api/data'); } catch { return; }
-    ws.onopen = () => { tries = 0; live.ws = Date.now(); if (!streamSince) streamSince = Date.now(); ws.send(JSON.stringify({ method: 'subscribeNewToken' })); ws.send(JSON.stringify({ method: 'subscribeMigration' })); };
+    ws.onopen = () => { tries = 0; live.ws = Date.now(); if (!streamSince) streamSince = Date.now(); ws.send(JSON.stringify({ method: 'subscribeNewToken' })); ws.send(JSON.stringify({ method: 'subscribeAccountTrade', keys: PW.map(w => w.a) })); ws.send(JSON.stringify({ method: 'subscribeMigration' })); };
     ws.onmessage = e => {
       let d; try { d = JSON.parse(e.data); } catch { return; } if (!d || !d.mint) return; live.ws = Date.now();
+      if (d.traderPublicKey && PWset.has(d.traderPublicKey) && /^(buy|sell)$/.test(d.txType || '')) return onWhaleTrade(d);
       if (d.txType === 'create') onLaunch(d); else if (/migrat/i.test(d.txType || '') || d.pool === 'pump-amm') onMigrate(d);
     };
     ws.onclose = () => { ws = null; setTimeout(open, Math.min(30000, 2500 * 2 ** tries++)); };
@@ -134,7 +171,7 @@ function pumpStream() {
 }
 function onLaunch(d) {
   if (!d.symbol || BAD.test(d.symbol + ' ' + (d.name || ''))) return;
-  // its logo comes out of its metadata, read by our proxy (racing IPFS gateways) so it shows the moment the car arrives
+  // its logo comes out of its metadata, read by our proxy (racing IPFS gateways) so it shows the moment the character arrives
   const meta = /^(https|ipfs|ar):\/\//.test(d.uri || '') ? '/api/img?j=' + encodeURIComponent(d.uri) + '&m=' + d.mint : img('', d.mint);
   const sol = solUsd(), t = { mint: d.mint, name: d.name || '', symbol: String(d.symbol).slice(0, 14), mcap: d.marketCapSol && sol ? d.marketCapSol * sol : null, created: Date.now(), s5m: {}, s1h: {}, uri: d.uri, iconUrl: meta };
   launches.unshift(t); if (launches.length > 30) launches.pop();
@@ -185,6 +222,7 @@ function bubbleTick() {
   else if (m.kind === 'bond') world.bubble({ kind: 'bond', kicker: Math.round(c.prog) + '% bonded', title: '$' + c.symbol, sub: 'about to migrate · ' + usd(c.mcap), iconUrl: c.iconUrl, mark: c.symbol.slice(0, 2), mint: c.mint });
   else if (m.kind === 'hot') world.bubble({ kind: 'hot', kicker: pct(c.chg, 1) + ' in ' + c.tf, title: '$' + c.symbol, sub: n0(heatOf(c)) + ' trades · ' + usd(c.mcap) + ' cap', iconUrl: c.iconUrl, mark: c.symbol.slice(0, 2), mint: c.mint });
   else if (m.kind === 'x') world.bubble({ kind: 'x', kicker: 'trending on X', title: m.x.name, sub: m.x.where, mark: '#', life: 7.5 });
+  else if (m.kind === 'whale') world.bubble({ kind: m.t.side === 'buy' ? 'hot' : 'bond', kicker: `${m.w.n} ${m.t.side === 'buy' ? 'bought' : 'sold'}`, title: '$' + (m.t.sym || '…'), sub: `${m.t.sol.toFixed(2)} SOL · pump.fun whale`, iconUrl: m.t.iconUrl, mark: (m.t.sym || '?').slice(0, 2), mint: m.t.mint, life: 8.5 });
 }
 setInterval(bubbleTick, 3300);
 const hottest = () => F.hot.slice().sort((a, b) => heatOf(b) - heatOf(a))[0] || null;
@@ -224,17 +262,19 @@ function card(it) {
       : cell('Market cap', usd(c.mcap)) + cell('5m', pct(s5.priceChange), cls(s5.priceChange)) + cell('1h', pct(s1.priceChange), cls(s1.priceChange)) + cell(c.cat === 'migrated' ? 'Migrated' : 'Liquidity', c.cat === 'migrated' ? ago(c.grad) + ' ago' : usd(c.liq)) + cell('Trades 5m', n0(heatOf(c))) + cell('Holders', n0(c.holders));
     el.innerHTML = `${X}<div class="hc-h">${ava(c, 1)}<div><b>$${esc(c.symbol)}</b><span>${esc(c.name || '')} · <u class="t-${c.cat}">${tag}</u>${c.mint === chasedMint ? ' · <u class="cop">WANTED</u>' : ''}</span></div><em>${hbar(c.stars)}<small>heat</small></em></div>
       <div class="hc-g">${g}</div>
-      <div class="hc-a"><button class="btn-steal" data-a="steal" type="button">Steal it</button><button class="btn-ghost2" data-a="chart" type="button">Chart</button><button class="btn-ghost2 ca" data-a="ca" type="button">${short(c.mint)}</button></div>`;
+      <div class="hc-a"><button class="btn-steal" data-a="steal" type="button">Ape in</button><button class="btn-ghost2" data-a="chart" type="button">Chart</button><button class="btn-ghost2 ca" data-a="ca" type="button">${short(c.mint)}</button></div>`;
   } else if (it.kind === 'perp') {
     const p = it.perp;
     el.innerHTML = `${X}<div class="hc-h">${pava(p)}<div><b>${esc(p.name)}</b><span>Perp on Hyperliquid · up to ${p.maxLev}x</span></div><em><b class="${cls(p.chg)}">${pct(p.chg, 1)}</b><small>24h</small></em></div>
       <div class="hc-g">${cell('Mark', px(p.mark))}${cell('Funding', fundStr(p), p.apr > 0 ? 'up' : p.apr < 0 ? 'dn' : '')}${cell('Open interest', usd(p.oi))}${cell('24h volume', usd(p.vol))}${cell('Max leverage', p.maxLev + 'x')}${cell('Who pays', p.fund > 0 ? 'longs pay' : p.fund < 0 ? 'shorts pay' : '—')}</div>
       <div class="hc-a"><button class="btn-steal" data-a="long" type="button">Long</button><button class="btn-short" data-a="short" type="button">Short</button><button class="btn-ghost2" data-a="board" type="button">Board</button></div>`;
   } else if (it.kind === 'whale') {
-    const w = it.whale, rank = whales.findIndex(x => x.a === w.a) + 1;
-    el.innerHTML = `${X}<div class="hc-h"><i class="ava whale big">${rank || 'W'}</i><div><b>${esc(wname(w))}</b><span>${rank ? `Whale #${rank} on Hyperliquid today` : 'Hyperliquid trader'}</span></div><em><b class="${cls(w.pnl)}">${money(w.pnl)}</b><small>today</small></em></div>
-      <div class="hc-g">${cell('Account', usd(w.v))}${cell('P&L today', money(w.pnl), cls(w.pnl))}${cell('ROI today', pct(w.roi * 100, 1), cls(w.roi))}${cell('Volume today', w.vlm ? usd(w.vlm) : '—')}${cell('Address', short(w.a))}${cell('Rank', rank ? '#' + rank : '—')}</div>
-      <div class="hc-a"><button class="btn-steal" data-a="track" type="button">Most wanted</button><button class="btn-ghost2" data-a="copyw" type="button">Copy address</button><a class="btn-ghost2" href="https://app.hyperliquid.xyz/explorer/address/${esc(w.a)}" target="_blank" rel="noopener">Explorer ↗</a></div>`;
+    const w = PW.find(x => x.a === it.whale.a) || it.whale;
+    const tr = (w.trades || []).slice(0, 4).map(t => `<div class="hw-t"><b class="${t.side === 'buy' ? 'up' : 'dn'}">${t.side === 'buy' ? 'Bought' : 'Sold'}</b><span>$${esc(t.sym || short(t.mint))}</span><em>${t.sol.toFixed(2)} SOL</em><small>${ago(t.t)}</small></div>`).join('') || '<p class="h-empty">No trades seen yet. They land here live.</p>';
+    el.innerHTML = `${X}<div class="hc-h"><i class="ava whale big">${esc(w.n.slice(0, 2))}</i><div><b>${esc(w.n)}</b><span>pump.fun whale · ${short(w.a)}</span></div><em><b>${w.sol != null ? n0(w.sol) : '—'}</b><small>SOL</small></em></div>
+      <div class="hw-tr">${tr}</div>
+      ${(w.bags || []).length ? `<div class="hc-g">${w.bags.slice(0, 3).map(b => cell('$' + esc(b.sym || short(b.mint)), usd(b.usd))).join('')}</div>` : ''}
+      <div class="hc-a"><a class="btn-steal" href="https://pump.fun/profile/${esc(w.a)}" target="_blank" rel="noopener">pump.fun ↗</a><button class="btn-ghost2" data-a="watchw" type="button">Watch wallet</button><button class="btn-ghost2" data-a="copyw" type="button">Copy address</button></div>`;
   } else if (it.kind === 'mine') {
     const r = it.row;
     el.innerHTML = `${X}<div class="hc-h">${ava({ iconUrl: r.iconUrl, symbol: r.sym }, 1)}<div><b>$${esc(r.sym)}</b><span>In your safehouse</span></div><em><b class="${cls(r.ch)}">${pct(r.ch, 1)}</b><small>24h</small></em></div>
@@ -253,8 +293,8 @@ function act(it, a) {
   } else if (it.kind === 'perp') {
     if (a === 'board') return go('perps');
     go('trade'); setTimeout(() => window.__buxPerp && window.__buxPerp(it.perp.name, a), 200);
-  } else if (it.kind === 'whale' && a === 'track') {
-    go('whales'); setTimeout(() => { const q = $('#whQ'); if (q) { q.value = it.whale.a; q.dispatchEvent(new Event('input', { bubbles: true })); } }, 400);
+  } else if (it.kind === 'whale' && a === 'watchw') {
+    go('whales'); setTimeout(() => { const b = $('#whTab button[data-t=sol]'); b && b.click(); const q = $('#soQ'); if (q) { q.value = it.whale.a; const g = $('#soGo'); g && g.click(); } }, 450);
   }
 }
 $('#hCard').addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && pinned) act(pinned, b.dataset.a); });
@@ -263,7 +303,7 @@ function tip(it, x, y) {
   el.hidden = false;
   el.innerHTML = it.kind === 'coin' ? `<b>$${esc(it.coin.symbol)}</b><em class="${cls(it.coin.chg)}">${it.coin.cat === 'new' ? 'new' : pct(it.coin.chg, 1)}</em><span>${usd(it.coin.mcap)}</span><small>click to follow</small>`
     : it.kind === 'perp' ? `<b>${esc(it.perp.name)}</b><em class="${cls(it.perp.chg)}">${pct(it.perp.chg, 1)}</em><span>${usd(it.perp.oi)} OI</span><small>perp · click</small>`
-    : it.kind === 'whale' ? `<b>${esc(wname(it.whale))}</b><em class="${cls(it.whale.pnl)}">${money(it.whale.pnl)}</em><small>whale · click</small>`
+    : it.kind === 'whale' ? `<b>${esc(it.whale.n || short(it.whale.a))}</b><em>${it.whale.sol != null ? n0(it.whale.sol) + ' SOL' : ''}</em><small>pump.fun whale · click</small>`
     : it.kind === 'safehouse' ? `<b>Your safehouse</b><small>connect a wallet to park your bag here</small>`
     : `<b>$${esc(it.row.sym)}</b><span>${usd(it.row.usd)}</span><small>your bag</small>`;
   el.style.left = Math.min(innerWidth - 240, x + 16) + 'px'; el.style.top = (y + 14) + 'px';
@@ -281,13 +321,13 @@ function missions() {
   if (F.migrated[0]) out.push({ type: 'mig', c: F.migrated[0] });
   const pm = perpList.slice(0, 30).filter(p => p.chg != null).sort((a, b) => Math.abs(b.chg) - Math.abs(a.chg))[0]; if (pm) out.push({ type: 'perp', p: pm });
   const pf = perpList.slice(0, 60).filter(p => isFinite(p.apr)).sort((a, b) => Math.abs(b.apr) - Math.abs(a.apr))[0]; if (pf) out.push({ type: 'fund', p: pf });
-  if (whales[0]) out.push({ type: 'whale', w: whales[0] });
+  const lw = PW.flatMap(w => w.trades.map(t => ({ w, t }))).sort((a, b) => b.t.t - a.t.t)[0]; if (lw) out.push({ type: 'whale', w: lw.w, t: lw.t });
   return out;
 }
 function mtext(m) {
   const c = m.c, p = m.p, w = m.w;
   switch (m.type) {
-    case 'pump': return { t: `$${c.symbol} is pumping`, s: `${pct(c.chg, 1)} in ${c.tf} · ${usd(c.mcap)} cap`, k: 'up', go: 'Steal it' };
+    case 'pump': return { t: `$${c.symbol} is pumping`, s: `${pct(c.chg, 1)} in ${c.tf} · ${usd(c.mcap)} cap`, k: 'up', go: 'Ape in' };
     case 'dump': return { t: `$${c.symbol} is dumping`, s: `${pct(c.chg, 1)} in ${c.tf} · ${usd(c.mcap)} cap`, k: 'dn', go: 'Follow it' };
     case 'chase': return { t: `Cops are chasing $${c.symbol}`, s: `the biggest dump on the streets · ${pct(c.chg, 1)}`, k: 'cop', go: 'Watch' };
     case 'busy': return { t: `$${c.symbol} is the busiest street`, s: `${n0(heatOf(c))} trades in 5 min`, k: 'hot', go: 'Follow it' };
@@ -296,11 +336,11 @@ function mtext(m) {
     case 'mig': return { t: `$${c.symbol} migrated`, s: `graduated to PumpSwap ${ago(c.grad)} ago`, k: 'new', go: 'Follow it' };
     case 'perp': return { t: `${p.name} ${p.chg >= 0 ? 'ripped' : 'sank'} ${pct(p.chg, 1)} today`, s: `${usd(p.oi)} open interest in the harbor`, k: p.chg >= 0 ? 'up' : 'dn', go: p.chg >= 0 ? 'Long it' : 'Short it' };
     case 'fund': return { t: `${p.name} funding is ${fundStr(p)}`, s: p.fund > 0 ? 'longs are paying shorts' : 'shorts are paying longs', k: 'hot', go: 'Open the perp' };
-    case 'whale': return { t: `Whale of the day: ${wname(w)}`, s: `${money(w.pnl)} on Hyperliquid today`, k: 'whale', go: 'Most wanted' };
+    case 'whale': return { t: `${w.n} ${m.t.side === 'buy' ? 'bought' : 'sold'} $${m.t.sym || '…'}`, s: `${m.t.sol.toFixed(2)} SOL · ${ago(m.t.t)} ago · pump.fun whale`, k: 'whale', go: 'Most wanted' };
   }
   return null;
 }
-function mava(m) { return m.c ? ava(m.c) : m.p ? pava(m.p) : `<i class="ava whale">1</i>`; }
+function mava(m) { return m.c ? ava(m.c) : m.p ? pava(m.p) : `<i class="ava whale">${esc((m.w && m.w.n || 'W').slice(0, 2))}</i>`; }
 function runMission(m) {
   if (m.c) { if (world) world.follow(m.c.mint); card({ kind: 'coin', coin: m.c }); }
   else if (m.p) { if (world) world.followPerp(m.p.name); card({ kind: 'perp', perp: m.p }); }
@@ -337,11 +377,8 @@ function drawRadar(w) {
   for (let k = 0; k <= 9; k++) { const v = -w.half + k * w.pitch - 2; rg.beginPath(); rg.moveTo(v, -w.half); rg.lineTo(v, w.half); rg.stroke(); rg.beginPath(); rg.moveTo(-w.half, v); rg.lineTo(Math.min(w.half, w.beach), v); rg.stroke(); }
   const now = performance.now();
   if (w.garage && world && world.home) { const [hx, hz] = world.home(); rg.fillStyle = 'rgba(255,79,158,.9)'; rg.beginPath(); rg.arc(hx, hz, 6 + Math.sin(now / 300) * 1.5, 0, Math.PI * 2); rg.fill(); }
-  for (const c of w.cars) {
-    if (!c.pos) continue; const r = c.coin ? 3.6 : 1.9;
-    rg.fillStyle = c.police ? (Math.sin(now / 90) > 0 ? '#ff4f6e' : '#5fa0ff') : c.coin ? (c.coin.cat === 'new' ? '#ffd23f' : c.coin.cat === 'migrated' ? '#5fc8ff' : c.coin.up ? '#2ee6a6' : '#ff4f9e') : 'rgba(255,255,255,.4)';
-    rg.fillRect(c.pos[0] - r, c.pos[1] - r, r * 2, r * 2);
-  }
+  for (const c of w.cars) { if (!c.pos) continue; const r = c.police ? 2.6 : 1.6; rg.fillStyle = c.police ? (Math.sin(now / 90) > 0 ? '#ff4f6e' : '#5fa0ff') : 'rgba(255,255,255,.35)'; rg.fillRect(c.pos[0] - r, c.pos[1] - r, r * 2, r * 2); }
+  for (const c of w.coins || []) { if (!c.pos || !c.coin || c.mine) continue; rg.fillStyle = c.coin.cat === 'new' ? '#ffd23f' : c.coin.cat === 'migrated' ? '#5fc8ff' : c.coin.up ? '#2ee6a6' : '#ff4f9e'; rg.beginPath(); rg.arc(c.pos[0], c.pos[1], 3.6, 0, Math.PI * 2); rg.fill(); }
   for (const b of w.boats || []) { if (!b.pos) continue; rg.fillStyle = '#7fd8ff'; rg.beginPath(); rg.moveTo(b.pos[0], b.pos[1] - 5); rg.lineTo(b.pos[0] + 3.4, b.pos[1] + 4); rg.lineTo(b.pos[0] - 3.4, b.pos[1] + 4); rg.closePath(); rg.fill(); }
   for (const hl of w.helis || []) { const p = hl.g.position; rg.strokeStyle = '#ffd23f'; rg.lineWidth = 2.4; rg.beginPath(); rg.arc(p.x, p.z, 4.5, 0, Math.PI * 2); rg.stroke(); }
   rg.restore();
@@ -415,16 +452,16 @@ function paintStory() {
   const cnt = (id, v) => { const e = $('#' + id); if (!e) return; e.dataset.n = v; if (e._done || reduced()) e.textContent = n0(v); };
   cnt('sNew', F.new.length); cnt('sHot', F.hot.length); cnt('sTrend', F.trending.length); cnt('sMig', F.migrated.length);
   const hot = F.hot.slice().sort((a, b) => heatOf(b) - heatOf(a))[0];
-  set('sHotLine', hot ? `<b>$${esc(hot.symbol)}</b> just pulled up beside you: ${n0(heatOf(hot))} trades in the last 5 minutes, ${pct(hot.chg, 1)} in ${hot.tf}. Steal it buys it through Jupiter, signed in your own wallet.` : 'The coin with the most trades in the last 5 minutes pulls up beside you.');
+  set('sHotLine', hot ? `<b>$${esc(hot.symbol)}</b> is standing right next to your car: ${n0(heatOf(hot))} trades in the last 5 minutes, ${pct(hot.chg, 1)} in ${hot.tf}. Ape in buys it through Jupiter, signed in your own wallet.` : 'The coin with the most trades in the last 5 minutes walks up to your car.');
   set('sHotCard', hot ? `<div class="sh-h">${ava(hot, 1)}<div><b>$${esc(hot.symbol)}</b><span>${esc(hot.name)}</span></div><em class="${cls(hot.chg)}">${pct(hot.chg, 1)}</em></div>
     <div class="sh-g"><div><span>Cap</span><b>${usd(hot.mcap)}</b></div><div><span>Trades 5m</span><b>${n0(heatOf(hot))}</b></div><div><span>Holders</span><b>${n0(hot.holders)}</b></div></div>
-    <button class="btn-steal s-go" type="button" data-steal="${esc(hot.mint)}">Steal it</button>` : empty('Finding the hottest car…'));
+    <button class="btn-steal s-go" type="button" data-steal="${esc(hot.mint)}">Ape in</button>` : empty('Finding the hottest coin…'));
   set('sDrops', (launches.length ? launches : F.new).slice(0, 6).map(c => row(c, `<span class="age" data-t="${c.created || ''}">${ago(c.created)}</span>`, c.mcap ? usd(c.mcap) : 'new pair')).join('') || empty('Waiting for the next launch…'));
   set('sMigs', F.migrated.slice(0, 4).map(c => row(c, ago(c.grad) + ' ago', usd(c.mcap))).join('') || empty('Loading migrations…'));
   set('sBond', F.bonding.slice(0, 3).map(c => `<div class="s-bond"><b>$${esc(c.symbol)}</b><i style="--p:${Math.min(100, c.prog || 0).toFixed(0)}%"></i><em>${Math.round(c.prog || 0)}%</em></div>`).join(''));
   set('sPerps', perpList.slice(0, 5).map(p => `<div class="s-perp">${pava(p)}<b>${esc(p.name)}</b><em class="${cls(p.chg)}">${pct(p.chg, 1)}</em><small>${fundStr(p)}</small><button type="button" data-perp="${esc(p.name)}" data-side="long">Long</button><button type="button" class="sh" data-perp="${esc(p.name)}" data-side="short">Short</button></div>`).join('') || empty('Loading the harbor…'));
   set('sX', xTrends.slice(0, 7).map((x, i) => `<a class="s-x" href="https://x.com/search?q=${encodeURIComponent(x.name)}" target="_blank" rel="noopener"><i>${i + 1}</i><b>${esc(x.name)}</b><small>${esc(x.where)}</small></a>`).join('') || empty('No crypto topic is trending on X in the countries we read right now.'));
-  set('sWhales', whales.slice(0, 3).map((w, i) => `<button type="button" class="s-row" data-w="${esc(w.a)}"><i class="ava whale">${i + 1}</i><b>${esc(wname(w))}</b><em class="${cls(w.pnl)}">${money(w.pnl)}</em><small>${usd(w.v)} account</small></button>`).join('') || empty('Loading today’s whales…'));
+  set('sWhales', PW.map(w => { const l = w.trades[0]; return `<button type="button" class="s-row" data-w="${esc(w.a)}"><i class="ava whale">${esc(w.n.slice(0, 2))}</i><b>${esc(w.n)}</b><em>${w.sol != null ? n0(w.sol) + ' SOL' : '—'}</em><small>${l ? `${l.side === 'buy' ? 'bought' : 'sold'} $${esc(l.sym || '…')} · ${l.sol.toFixed(1)} SOL · ${ago(l.t)} ago` : 'watching for their next trade'}</small></button>`; }).join(''));
   set('sBag', W.sol.address ? (myRows.slice(0, 3).map(r => row({ ...r, symbol: r.sym }, usd(r.usd), pct(r.ch, 1) + ' 24h')).join('') || empty('Your wallet is connected. Coins you hold park here.')) : `<button class="btn-steal s-go" type="button" data-connect="1">Connect wallet</button>`);
   cnt('sLaunchN', launchN); set('sPerMin', perMin() == null ? '—' : String(perMin())); set('sPerMinT', perMin() == null ? '—' : String(perMin())); set('sLaunchN2', n0(launchN));
   const dep = [...departs.map(d => ({ c: d.c, t: d.at, live: Date.now() - d.at < 40e3 })), ...F.migrated.filter(c => !departs.some(d => d.c.mint === c.mint)).map(c => ({ c, t: c.grad, live: false }))].slice(0, 5);
@@ -440,7 +477,7 @@ $('#story').addEventListener('click', e => {
   const pb = e.target.closest('[data-perp]'); if (pb) return act({ kind: 'perp', perp: perpList.find(p => p.name === pb.dataset.perp) }, pb.dataset.side);
   if (e.target.closest('[data-connect]')) return openWallets();
   const r = e.target.closest('.s-row[data-m]'); if (r) { const c = findCoin(r.dataset.m); if (c) { roam(); setTimeout(() => { if (world) world.follow(c.mint); card({ kind: 'coin', coin: c }); }, 400); } return; }
-  const w = e.target.closest('.s-row[data-w]'); if (w) { const x = whales.find(q => q.a === w.dataset.w); if (x) { roam(); setTimeout(() => card({ kind: 'whale', whale: x }), 400); } return; }
+  const w = e.target.closest('.s-row[data-w]'); if (w) { const x = PW.find(q => q.a === w.dataset.w); if (x) { roam(); setTimeout(() => card({ kind: 'whale', whale: x }), 400); } return; }
   if (e.target.closest('[data-roam]')) return roam();
   const g = e.target.closest('[data-go]'); if (g) { e.preventDefault(); boot(); go(g.dataset.go); }
 });
@@ -461,7 +498,7 @@ addEventListener('pointermove', e => {
 
 // ---------------------------------------------------------------- start: the world module, then every feed
 function startWorld() {
-  import('./world.js?v=14').then(m => {
+  import('./world.js?v=15').then(m => {
     world = m.startWorld($('#world'), {
       reduced: reduced(), gate: !entered, onHover: tip, onFrame: w => { drawRadar(w); drawDrive(w); }, onWheel: () => roam(),
       onPick: it => { $('#hTip').hidden = true; if (it && it.kind === 'safehouse') { openWallets(); return; } if (!html.classList.contains('roam')) { if (it && it.kind) { roam(); setTimeout(() => card(it), 400); } return; } card(it && it.kind ? it : null); },
@@ -470,11 +507,11 @@ function startWorld() {
     if (html.classList.contains('panel')) setTimeout(() => { if (html.classList.contains('panel')) world.pause(true); }, 900);
     if (api.perps.list.length) { perpList = api.perps.list.filter(p => p.oi > 0).sort((a, b) => b.oi - a.oi); world.setPerps(perpList); }
     if (myRows.length) world.setGarage(myRows);
-    paint(); if (whales.length) world.setWhales(whales.slice(0, 3));
+    paint(); paintWhales();
   }).catch(e => { console.error(e); html.classList.add('noworld'); });
   loadGems(); setInterval(loadGems, 8000);
   loadTrending(); setInterval(loadTrending, 30000);
-  loadWhales(); setInterval(loadWhales, 5 * 60e3);
+  loadWhales(); setInterval(loadWhales, 60e3);
   loadTrends(); setInterval(loadTrends, 5 * 60e3);
   pumpStream();
 }
