@@ -594,3 +594,13 @@ html.story::-webkit-scrollbar{display:none}
 .g-wal.on svg{stroke:#2ee6a6}
 .gate .g-logo{width:150px;height:150px;filter:drop-shadow(0 0 40px rgba(138,63,226,.9)) drop-shadow(0 16px 34px rgba(0,0,0,.45))}
 @media (max-width:760px){.g-row{flex-direction:column;gap:10px}.g-wal{height:56px;padding:0 26px;font-size:14px}.gate .g-logo{width:116px;height:116px}}
+
+/* smaller gate buttons */
+.g-go{height:50px;padding:0 30px;font-size:18px}
+.g-go::after{inset:-5px}
+.g-wal{height:50px;padding:0 22px;gap:8px;font-size:12.5px;letter-spacing:.07em}
+.g-wal svg{width:18px;height:18px}
+.g-row{gap:10px}
+.gate .g-logo{width:132px;height:132px}
+.s-roam{height:48px;padding:0 28px;font-size:17px}
+@media (max-width:760px){.g-go{height:46px;padding:0 26px;font-size:16px}.g-wal{height:44px;padding:0 20px;font-size:11.5px}.gate .g-logo{width:104px;height:104px}}
