@@ -643,3 +643,8 @@ html.story::-webkit-scrollbar{display:none}
 .ch.vis .sp>*:nth-child(6){transition-delay:.76s}.ch.vis .sp>*:nth-child(7){transition-delay:.86s}.ch.vis .sp>*:nth-child(n+8){transition-delay:.94s}
 .ava[style*="--h"]{background:linear-gradient(135deg,hsl(var(--h) 80% 62%),hsl(calc(var(--h) + 48) 72% 38%))}
 @media (max-width:760px){.s-p{font-size:13.5px;margin-bottom:12px}.s-src{margin-top:10px}}
+.s-score{grid-template-columns:repeat(3,1fr)}
+.s-dep .tk{color:#5fc8ff;font-weight:800;animation:tkb 1.2s ease-in-out infinite}
+@keyframes tkb{50%{opacity:.45}}
+#sArenaHot{margin-top:10px}
+@media (prefers-reduced-motion:reduce){.s-dep .tk{animation:none}}

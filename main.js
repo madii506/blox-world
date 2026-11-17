@@ -99,7 +99,7 @@ const shownBond = new Set();
 async function loadTrending() {
   const [h, t] = await Promise.allSettled([api.trending('5m', 100), api.trending('1h', 100)]);
   if (h.status === 'fulfilled') { const L = (h.value || []).filter(isPump).filter(t => !BAD.test(t.symbol + ' ' + t.name)), hm = Math.max(1, ...L.map(heatOf)); F.hot = L.slice(0, 30).map(t => shape(t, 'hot', hm)); live.hot = Date.now(); }
-  if (t.status === 'fulfilled') { const L = (t.value || []).filter(isPump).filter(t => !BAD.test(t.symbol + ' ' + t.name)), hm = Math.max(1, ...L.map(heatOf)); F.trending = L.slice(0, 30).map(t => shape(t, 'trending', hm)); live.trend = Date.now(); }
+  if (t.status === 'fulfilled') { const L = (t.value || []).filter(isPump).filter(t => !BAD.test(t.symbol + ' ' + t.name)), hm = Math.max(1, ...L.map(heatOf)); F.trending = L.slice(0, 30).map(t => shape(t, 'trending', hm)); live.trend = Date.now(); if (world && world.setBanner && F.trending[0]) world.setBanner(F.trending[0]); }
   mood(); paint();
 }
 // the mood of the trenches: how much of the last 5 minutes of trading went into hot coins that are up
@@ -121,7 +121,7 @@ function pumpStream() {
   let ws = null, tries = 0;
   const open = () => {
     try { ws = new WebSocket('wss://pumpportal.fun/api/data'); } catch { return; }
-    ws.onopen = () => { tries = 0; live.ws = Date.now(); ws.send(JSON.stringify({ method: 'subscribeNewToken' })); ws.send(JSON.stringify({ method: 'subscribeMigration' })); };
+    ws.onopen = () => { tries = 0; live.ws = Date.now(); if (!streamSince) streamSince = Date.now(); ws.send(JSON.stringify({ method: 'subscribeNewToken' })); ws.send(JSON.stringify({ method: 'subscribeMigration' })); };
     ws.onmessage = e => {
       let d; try { d = JSON.parse(e.data); } catch { return; } if (!d || !d.mint) return; live.ws = Date.now();
       if (d.txType === 'create') onLaunch(d); else if (/migrat/i.test(d.txType || '') || d.pool === 'pump-amm') onMigrate(d);
@@ -138,17 +138,23 @@ function onLaunch(d) {
   const meta = /^(https|ipfs|ar):\/\//.test(d.uri || '') ? '/api/img?j=' + encodeURIComponent(d.uri) + '&m=' + d.mint : img('', d.mint);
   const sol = solUsd(), t = { mint: d.mint, name: d.name || '', symbol: String(d.symbol).slice(0, 14), mcap: d.marketCapSol && sol ? d.marketCapSol * sol : null, created: Date.now(), s5m: {}, s1h: {}, uri: d.uri, iconUrl: meta };
   launches.unshift(t); if (launches.length > 30) launches.pop();
-  latestLaunch = t; launchN++;
+  latestLaunch = t; launchN++; launchTs.push(Date.now()); if (launchTs.length > 600) launchTs.splice(0, 300);
+  if (world && world.launched) world.launched(t);
   const c = shape(t, 'new'); F.new = [c, ...F.new.filter(x => x.mint !== t.mint)].slice(0, 24);
   syncSoon(); paintStory();
 }
-let latestLaunch = null, launchN = 0;
+let latestLaunch = null, launchN = 0, streamSince = 0, migSeen = 0;
+const launchTs = [], departs = [];                                                    // launch times, and the migrations seen live (they take off)
+const perMin = () => { if (!streamSince) return null; const sec = Math.min(60, (Date.now() - streamSince) / 1000); return sec < 15 ? null : Math.round(launchTs.filter(t => t > Date.now() - sec * 1000).length / sec * 60); };   // a real rate, once there are 15s to measure
 async function onMigrate(d) {
   let c = findCoin(d.mint);
   if (!c) { try { const r = await api.tokens([d.mint]); if (r && r[0]) c = shape({ ...r[0], launchpad: 'pump.fun' }, 'migrated'); } catch { } }
   if (!c) return; c = { ...c, cat: 'migrated', isNew: false, grad: Date.now() };
   F.migrated = [c, ...F.migrated.filter(x => x.mint !== c.mint)].slice(0, 20); F.new = F.new.filter(x => x.mint !== c.mint);
-  queue({ kind: 'migrated', c, urgent: true }); syncSoon(); paintStory();
+  queue({ kind: 'migrated', c, urgent: true }); syncSoon();
+  migSeen++; departs.unshift({ c, at: Date.now() }); if (departs.length > 8) departs.pop();
+  if (world && world.takeoff) world.takeoff(c);
+  paintStory();
 }
 let syncT = 0;
 function syncSoon() { if (syncT) return; syncT = setTimeout(() => { syncT = 0; sync(); }, 2500); }
@@ -181,6 +187,9 @@ function bubbleTick() {
   else if (m.kind === 'x') world.bubble({ kind: 'x', kicker: 'trending on X', title: m.x.name, sub: m.x.where, mark: '#', life: 7.5 });
 }
 setInterval(bubbleTick, 3300);
+const hottest = () => F.hot.slice().sort((a, b) => heatOf(b) - heatOf(a))[0] || null;
+function arena() { if (world && world.setArena && !document.hidden) world.setArena({ perMin: perMin(), migrated: migSeen, mood: moodV, hot: hottest() }); }
+setInterval(arena, 2000);
 
 // ---------------------------------------------------------------- the feed (free roam): New pairs, Hot, Trending, Migrated
 $('#hTabs').addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if (!b) return; feedTab = b.dataset.t; $$('#hTabs button').forEach(x => x.classList.toggle('on', x === b)); drawFeed(true); });
@@ -353,7 +362,7 @@ setInterval(() => {
 const gated = startPage() === 'map';
 let entered = !gated;
 html.classList.toggle('gated', gated);
-const SEQ = ['streets', 'hot', 'drops', 'migrated', 'harbor', 'pier', 'whales', 'safehouse', 'mood', 'roam'];
+const SEQ = ['streets', 'hot', 'drops', 'site', 'migrated', 'airport', 'harbor', 'beach', 'pier', 'arena', 'whales', 'safehouse', 'mood', 'roam'];
 function paintGate() { }
 
 function enterWorld() {
@@ -409,6 +418,12 @@ function paintStory() {
   set('sX', xTrends.slice(0, 7).map((x, i) => `<div class="s-x"><i>${i + 1}</i><b>${esc(x.name)}</b><small>${esc(x.where)}</small></div>`).join('') || empty('No crypto topic is trending on X in the countries we read right now.'));
   set('sWhales', whales.slice(0, 3).map((w, i) => `<button type="button" class="s-row" data-w="${esc(w.a)}"><i class="ava whale">${i + 1}</i><b>${esc(wname(w))}</b><em class="${cls(w.pnl)}">${money(w.pnl)}</em><small>${usd(w.v)} account</small></button>`).join('') || empty('Loading today’s whales…'));
   set('sBag', W.sol.address ? (myRows.slice(0, 3).map(r => row({ ...r, symbol: r.sym }, usd(r.usd), pct(r.ch, 1) + ' 24h')).join('') || empty('Your wallet is connected. Coins you hold park here.')) : `<button class="btn-steal s-go" type="button" data-connect="1">Connect wallet</button>`);
+  cnt('sLaunchN', launchN); set('sPerMin', perMin() == null ? '—' : String(perMin()));
+  const dep = [...departs.map(d => ({ c: d.c, t: d.at, live: Date.now() - d.at < 40e3 })), ...F.migrated.filter(c => !departs.some(d => d.c.mint === c.mint)).map(c => ({ c, t: c.grad, live: false }))].slice(0, 5);
+  set('sDep', dep.map(d => row(d.c, d.live ? '<span class="tk">Taking off</span>' : 'Departed ' + ago(d.t) + ' ago', d.c.mcap ? usd(d.c.mcap) + ' cap' : 'graduated')).join('') || empty('Waiting for the next graduation…'));
+  set('sTrendTop', F.trending.slice(0, 5).map((c, i) => row(c, `<b class="${cls(c.chg)}">${pct(c.chg, 0)}</b>`, (i === 0 ? 'On the banner · ' : '#' + (i + 1) + ' · ') + usd(c.mcap))).join('') || empty('Loading what’s trending…'));
+  set('sPM', perMin() == null ? '—' : String(perMin())); set('sMS', String(migSeen)); set('sMD', moodV == null ? '—' : Math.round(moodV * 100) + '%');
+  const hh = hottest(); set('sArenaHot', hh ? row(hh, `<b class="${cls(hh.chg)}">${pct(hh.chg, 1)}</b>`, 'On the big screen · ' + n0(heatOf(hh)) + ' trades 5m') : '');
   if (moodV != null) { const m = moodV; $('#sMood').style.setProperty('--m', (m * 100).toFixed(0) + '%'); set('sMoodV', Math.round(m * 100) + '%'); set('sMoodL', m >= .62 ? 'Euphoria' : m >= .5 ? 'Calm streets' : m >= .38 ? 'Tension' : 'Riots'); }
 }
 setInterval(() => { if (html.classList.contains('story')) $$('#sDrops .age').forEach(e => { const t = +e.dataset.t; if (t) e.textContent = ago(t); }); }, 1000);
@@ -438,7 +453,7 @@ addEventListener('pointermove', e => {
 
 // ---------------------------------------------------------------- start: the world module, then every feed
 function startWorld() {
-  import('./world.js?v=11').then(m => {
+  import('./world.js?v=12').then(m => {
     world = m.startWorld($('#world'), {
       reduced: reduced(), gate: !entered, onHover: tip, onFrame: drawRadar,
       onPick: it => { $('#hTip').hidden = true; if (it && it.kind === 'safehouse') { openWallets(); return; } if (!html.classList.contains('roam')) { if (it && it.kind) { roam(); setTimeout(() => card(it), 400); } return; } card(it && it.kind ? it : null); },
