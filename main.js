@@ -316,6 +316,13 @@ $('#hMissions').addEventListener('click', e => { const b = e.target.closest('but
 // ---------------------------------------------------------------- the radar: the city from above, turned with the camera
 const rc = $('#radar'), rg = rc.getContext('2d');
 const DISTRICTS = [['DOWNTOWN', 0, 4], ['VICE BEACH', 0, 0, 'b'], ['HARBOR', 0, 0, 'h'], ['THE PIER', 0, 34, 'p']];
+let lastMode = '';
+function drawDrive(w) {
+  if (!html.classList.contains('roam')) return;
+  if (w.mode !== lastMode) { lastMode = w.mode; html.classList.toggle('driving', w.mode === 'drive'); $('#hView').innerHTML = w.mode === 'map' ? 'Drive <kbd>V</kbd>' : 'Map <kbd>V</kbd>'; }
+  if (w.me) $('#hSpd').textContent = Math.round(Math.abs(w.me.v) * 3.6);
+}
+$('#hView').onclick = () => { if (world && world.toggleMap) world.toggleMap(); };
 function drawRadar(w) {
   if (!html.classList.contains('roam')) return;
   const S = rc.width, h = S / 2, scale = S / 240, t = w.controls.target, az = Math.atan2(w.cam.position.x - t.x, w.cam.position.z - t.z);
@@ -362,7 +369,7 @@ setInterval(() => {
 const gated = startPage() === 'map';
 let entered = !gated;
 html.classList.toggle('gated', gated);
-const SEQ = ['streets', 'hot', 'drops', 'site', 'migrated', 'airport', 'harbor', 'beach', 'pier', 'arena', 'whales', 'safehouse', 'mood', 'roam'];
+const SEQ = ['streets', 'hot', 'drops', 'graduates', 'pulse', 'whales', 'safehouse', 'harbor', 'trending', 'x', 'roam'];   // the drive, stop by stop (world.drive.js has the same order)
 function paintGate() { }
 
 function enterWorld() {
@@ -408,6 +415,7 @@ function paintStory() {
   const cnt = (id, v) => { const e = $('#' + id); if (!e) return; e.dataset.n = v; if (e._done || reduced()) e.textContent = n0(v); };
   cnt('sNew', F.new.length); cnt('sHot', F.hot.length); cnt('sTrend', F.trending.length); cnt('sMig', F.migrated.length);
   const hot = F.hot.slice().sort((a, b) => heatOf(b) - heatOf(a))[0];
+  set('sHotLine', hot ? `<b>$${esc(hot.symbol)}</b> just pulled up beside you: ${n0(heatOf(hot))} trades in the last 5 minutes, ${pct(hot.chg, 1)} in ${hot.tf}. Steal it buys it through Jupiter, signed in your own wallet.` : 'The coin with the most trades in the last 5 minutes pulls up beside you.');
   set('sHotCard', hot ? `<div class="sh-h">${ava(hot, 1)}<div><b>$${esc(hot.symbol)}</b><span>${esc(hot.name)}</span></div><em class="${cls(hot.chg)}">${pct(hot.chg, 1)}</em></div>
     <div class="sh-g"><div><span>Cap</span><b>${usd(hot.mcap)}</b></div><div><span>Trades 5m</span><b>${n0(heatOf(hot))}</b></div><div><span>Holders</span><b>${n0(hot.holders)}</b></div></div>
     <button class="btn-steal s-go" type="button" data-steal="${esc(hot.mint)}">Steal it</button>` : empty('Finding the hottest car…'));
@@ -415,10 +423,10 @@ function paintStory() {
   set('sMigs', F.migrated.slice(0, 4).map(c => row(c, ago(c.grad) + ' ago', usd(c.mcap))).join('') || empty('Loading migrations…'));
   set('sBond', F.bonding.slice(0, 3).map(c => `<div class="s-bond"><b>$${esc(c.symbol)}</b><i style="--p:${Math.min(100, c.prog || 0).toFixed(0)}%"></i><em>${Math.round(c.prog || 0)}%</em></div>`).join(''));
   set('sPerps', perpList.slice(0, 5).map(p => `<div class="s-perp">${pava(p)}<b>${esc(p.name)}</b><em class="${cls(p.chg)}">${pct(p.chg, 1)}</em><small>${fundStr(p)}</small><button type="button" data-perp="${esc(p.name)}" data-side="long">Long</button><button type="button" class="sh" data-perp="${esc(p.name)}" data-side="short">Short</button></div>`).join('') || empty('Loading the harbor…'));
-  set('sX', xTrends.slice(0, 7).map((x, i) => `<div class="s-x"><i>${i + 1}</i><b>${esc(x.name)}</b><small>${esc(x.where)}</small></div>`).join('') || empty('No crypto topic is trending on X in the countries we read right now.'));
+  set('sX', xTrends.slice(0, 7).map((x, i) => `<a class="s-x" href="https://x.com/search?q=${encodeURIComponent(x.name)}" target="_blank" rel="noopener"><i>${i + 1}</i><b>${esc(x.name)}</b><small>${esc(x.where)}</small></a>`).join('') || empty('No crypto topic is trending on X in the countries we read right now.'));
   set('sWhales', whales.slice(0, 3).map((w, i) => `<button type="button" class="s-row" data-w="${esc(w.a)}"><i class="ava whale">${i + 1}</i><b>${esc(wname(w))}</b><em class="${cls(w.pnl)}">${money(w.pnl)}</em><small>${usd(w.v)} account</small></button>`).join('') || empty('Loading today’s whales…'));
   set('sBag', W.sol.address ? (myRows.slice(0, 3).map(r => row({ ...r, symbol: r.sym }, usd(r.usd), pct(r.ch, 1) + ' 24h')).join('') || empty('Your wallet is connected. Coins you hold park here.')) : `<button class="btn-steal s-go" type="button" data-connect="1">Connect wallet</button>`);
-  cnt('sLaunchN', launchN); set('sPerMin', perMin() == null ? '—' : String(perMin()));
+  cnt('sLaunchN', launchN); set('sPerMin', perMin() == null ? '—' : String(perMin())); set('sPerMinT', perMin() == null ? '—' : String(perMin())); set('sLaunchN2', n0(launchN));
   const dep = [...departs.map(d => ({ c: d.c, t: d.at, live: Date.now() - d.at < 40e3 })), ...F.migrated.filter(c => !departs.some(d => d.c.mint === c.mint)).map(c => ({ c, t: c.grad, live: false }))].slice(0, 5);
   set('sDep', dep.map(d => row(d.c, d.live ? '<span class="tk">Taking off</span>' : 'Departed ' + ago(d.t) + ' ago', d.c.mcap ? usd(d.c.mcap) + ' cap' : 'graduated')).join('') || empty('Waiting for the next graduation…'));
   set('sTrendTop', F.trending.slice(0, 5).map((c, i) => row(c, `<b class="${cls(c.chg)}">${pct(c.chg, 0)}</b>`, (i === 0 ? 'On the banner · ' : '#' + (i + 1) + ' · ') + usd(c.mcap))).join('') || empty('Loading what’s trending…'));
@@ -453,9 +461,9 @@ addEventListener('pointermove', e => {
 
 // ---------------------------------------------------------------- start: the world module, then every feed
 function startWorld() {
-  import('./world.js?v=12').then(m => {
+  import('./world.js?v=13').then(m => {
     world = m.startWorld($('#world'), {
-      reduced: reduced(), gate: !entered, onHover: tip, onFrame: drawRadar,
+      reduced: reduced(), gate: !entered, onHover: tip, onFrame: w => { drawRadar(w); drawDrive(w); }, onWheel: () => roam(),
       onPick: it => { $('#hTip').hidden = true; if (it && it.kind === 'safehouse') { openWallets(); return; } if (!html.classList.contains('roam')) { if (it && it.kind) { roam(); setTimeout(() => card(it), 400); } return; } card(it && it.kind ? it : null); },
     });
     if (entered && !html.classList.contains('story')) html.classList.add('roam', 'hud-in');
@@ -477,10 +485,10 @@ function togglePhone(v) { phone.hidden = v == null ? !phone.hidden : !v; $('#hPh
 $('#hPhone').onclick = () => togglePhone();
 phone.addEventListener('click', e => { const a = e.target.closest('a[data-go], button[data-app]'); if (!a) return; togglePhone(false); if (a.dataset.app === 'missions') openMissions(); else if (a.dataset.app === 'tour') { e.preventDefault(); tour(); } });
 $('#world').addEventListener('pointerdown', () => { if (!phone.hidden) togglePhone(false); html.classList.remove('feed-open'); });
-// on the streets: ↑ or P takes the phone out (like the game), M opens the missions, Esc puts things away
+// on the streets: P takes the phone out, M opens the missions, Esc puts things away (WASD, the arrows, Shift, Space and V drive the car)
 addEventListener('keydown', e => {
   if (!html.classList.contains('roam') || html.classList.contains('panel') || e.metaKey || e.ctrlKey || e.altKey || !$('#modal').hidden || !$('#pal').hidden || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
-  if (e.key === 'ArrowUp' || e.key === 'p' || e.key === 'P') { e.preventDefault(); togglePhone(); }
+  if (e.key === 'p' || e.key === 'P') { e.preventDefault(); togglePhone(); }
   else if (e.key === 'm' || e.key === 'M') { $('#hMissions').hidden ? openMissions() : ($('#hMissions').hidden = true); }
   else if (e.key === 'Escape') { if (!phone.hidden) togglePhone(false); else if (!$('#hMissions').hidden) $('#hMissions').hidden = true; else if (pinned) { card(null); if (world) world.unfollow(); } }
 });
