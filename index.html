@@ -13,37 +13,37 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="BLOX">
 <meta property="og:description" content="The First Open-World Trenches in GTA. Every coin is a car. Steal one.">
-<meta property="og:image" content="/og.png?v=1">
+<meta property="og:url" content="https://blox-world-flax.vercel.app/">
+<meta property="og:image" content="https://blox-world-flax.vercel.app/og.png?v=2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="BLOX">
 <meta name="twitter:description" content="The First Open-World Trenches in GTA. Every coin is a car. Steal one.">
-<meta name="twitter:image" content="/og.png?v=1">
+<meta name="twitter:image" content="https://blox-world-flax.vercel.app/og.png?v=2">
 <link rel="preload" href="/inter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/Inter-Black.otf" as="font" type="font/otf" crossorigin>
-<link rel="modulepreload" href="/world.js?v=3">
+<link rel="modulepreload" href="/world.js?v=5">
 <link rel="stylesheet" href="/app.css?v=1">
-<link rel="stylesheet" href="/blox.css?v=3">
-<script>try{var h=location.hash.slice(1),st=JSON.parse(localStorage.getItem('bux:set')||'{}');if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&(!h||h==='map')&&!/[?&]t=/.test(location.search)&&st.intro!==false)document.documentElement.classList.add('cine')}catch(e){}</script>
+<link rel="stylesheet" href="/blox.css?v=5">
+<script>try{var h=location.hash.slice(1),st=JSON.parse(localStorage.getItem('bux:set')||'{}');if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&(!h||h==='map')&&!/[?&]t=/.test(location.search)&&st.intro!==false)document.documentElement.classList.add('gated')}catch(e){}</script>
 </head>
 <body>
 <!-- the world: a voxel Vice City at war. no landing page, the site opens here -->
 <canvas id="world" aria-label="BLOX: a voxel city where every live coin is a car"></canvas>
-<div class="cine" id="cine" aria-hidden="true"><i></i><i></i></div>
+<div class="gate" id="gate"><div class="g-in"><img class="g-logo" src="/favicon-192.png?v=2" alt="BLOX" width="132" height="132"><button class="g-go" id="enterGo" type="button"><span>Enter world</span></button></div></div>
 <div id="hud">
-  <div class="h-brand"><img src="/logo.png?v=1" alt="" width="44" height="44"><div><b>BLOX</b><span>The First Open-World Trenches in GTA</span></div></div>
+  <button class="h-logo" id="hLogo" type="button" aria-label="Back to the city view"><img src="/favicon-192.png?v=2" alt="BLOX" width="58" height="58"></button>
   <button class="h-note" id="hNote" type="button" hidden></button>
   <div class="h-right">
-    <div class="h-cash" title="Your bag, once a wallet is connected"><b id="hCash">$0</b></div>
-    <div class="h-rank" id="hRank"><b id="hRankN">Rookie</b><i><i></i></i><span id="hRankJ">0 jobs</span></div>
-    <div class="h-mood" id="hMood" hidden title="How much of the last 5 minutes of trading went into coins that are up"><div class="hm-top"><b id="hMoodL">—</b><span id="hMoodV">—</span></div><i class="hm-bar"><i></i></i></div>
-    <div class="h-row"><span class="h-gta" id="hGta">GTA VI <b>—</b></span><button class="h-ic" id="hSearch" type="button" aria-label="Search coins and commands"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg></button><button class="h-connect" id="hConnect" type="button"><i class="dot"></i><span>Connect</span></button></div>
+    <div class="h-row"><button class="h-like" id="hLike" type="button" aria-label="Like BLOX"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z"/></svg><b id="hLikeN">—</b></button><button class="h-ic" id="hSearch" type="button" aria-label="Search coins and commands"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg></button><button class="h-connect" id="hConnect" type="button"><i class="dot"></i><span>Connect</span></button></div>
     <button class="h-ca" id="hCa" type="button" hidden title="Copy the $BLOX contract address"><span>CA</span><b id="hCaTxt"></b></button>
   </div>
   <div class="h-radar"><canvas id="radar" width="400" height="400"></canvas><i class="h-n">N</i></div>
   <aside class="h-feed" id="hFeed"><p class="h-fh"><i></i>Live on the streets <em id="hCount">—</em></p><div class="h-tabs" id="hTabs" role="tablist"><button type="button" data-t="hot" class="on">Hot</button><button type="button" data-t="new">New</button><button type="button" data-t="perps">Harbor</button><button type="button" data-t="whales">Whales</button></div><div id="hList"><p class="h-empty">Scanning the streets…</p></div></aside>
   <div class="h-tip" id="hTip" hidden></div>
   <div class="h-card" id="hCard" hidden></div>
-  <div class="h-missions" id="hMissions" hidden><div class="hm-in" role="dialog" aria-label="Missions"><div class="hm-h"><b>Missions</b><span>live from the trenches</span><button class="hc-x" type="button" data-a="x" aria-label="Close">✕</button></div><div class="hm-list" id="hmList"></div></div></div>
+  <div class="h-missions" id="hMissions" hidden><div class="hm-in" role="dialog" aria-label="Missions"><div class="hm-h"><b>Missions</b><span>live from the trenches</span><div class="h-rank" id="hRank" title="Every swap or hedge you finish here is a job"><b id="hRankN">Rookie</b><i><i></i></i><em id="hRankJ">0 jobs</em></div><button class="hc-x" type="button" data-a="x" aria-label="Close">✕</button></div><div class="hm-list" id="hmList"></div></div></div>
   <button class="h-coins" id="hCoins" type="button">Coins</button>
   <button class="h-phone" id="hPhone" type="button" aria-label="Open the phone"><svg viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg><span>Phone</span></button>
   <div class="phone" id="phone" hidden><div class="ph-top"><b>iBLOX</b><span id="phClock">--:--</span></div><div class="ph-apps"><button type="button" data-app="missions" style="--c:#ffd23f"><i><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></i><span>Missions</span></button><a href="#map" data-go="map" style="--c:#2f3fe4"><i><svg viewBox="0 0 24 24"><path d="M12 21s-6.5-5.9-6.5-11a6.5 6.5 0 0 1 13 0c0 5.1-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg></i><span>Streets</span></a><a href="#trade" data-go="trade" style="--c:#8a3fe2"><i><svg viewBox="0 0 24 24"><path d="M7 3v4M7 17v4M17 6v3M17 15v4"/><rect x="4.5" y="7" width="5" height="10" rx="1.2"/><rect x="14.5" y="9" width="5" height="6" rx="1.2"/></svg></i><span>Trade</span></a><a href="#pump" data-go="pump" style="--c:#ff4f9e"><i><svg viewBox="0 0 24 24"><path d="M13.2 2.5 5 13.6h5.6l-1 7.9 8.4-11.3h-5.7z"/></svg></i><span>Drops</span></a><a href="#trending" data-go="trending" style="--c:#ff7a3a"><i><svg viewBox="0 0 24 24"><path d="M12 21.5c3.9 0 6.6-2.7 6.6-6.4 0-4-3-6.1-4.2-9.4-.3-.8-1.3-.9-1.7-.2-.9 1.6-1.2 3.1-2.7 4.4-.6-1.2-1.4-2-2-2.3-.6-.3-1.2.1-1.3.7-.3 1.4-1.2 3.2-1.2 6.6 0 3.8 2.6 6.6 6.5 6.6z"/></svg></i><span>Hot</span></a><a href="#perps" data-go="perps" style="--c:#2ee6a6"><i><svg viewBox="0 0 24 24"><path d="M8 20V5M4.5 8.5 8 5l3.5 3.5M16 4v15M12.5 15.5 16 19l3.5-3.5"/></svg></i><span>Perps</span></a><a href="#whales" data-go="whales" style="--c:#ffd23f"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.4"/><path d="M12 2v4.5M12 17.5V22M2 12h4.5M17.5 12H22"/></svg></i><span>Most Wanted</span></a><a href="#hedge" data-go="hedge" style="--c:#5fc8ff"><i><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5.5c0 4.4 3 8.2 7 9.5 4-1.3 7-5.1 7-9.5V6z"/><path d="m9 12 2.2 2.2L15.5 10"/></svg></i><span>Hedge</span></a><a href="#bag" data-go="bag" style="--c:#c8a8ff"><i><svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v9H4z"/><path d="M10 20v-5h4v5"/></svg></i><span>Safehouse</span></a><a href="#overview" data-go="overview" style="--c:#ff9ec9"><i><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg></i><span>Overview</span></a><a href="#faq" data-go="faq" style="--c:#9ff0d0"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.6v.2"/></svg></i><span>Intel</span></a></div></div>
@@ -55,14 +55,13 @@
 <div id="app">
 
 <header id="nav" class="hud">
-  <button class="hud-brand" id="homeBtn" type="button" title="Back to the streets"><img src="/logo.png?v=1" alt="" width="30" height="30"><span><b>BLOX</b><em>The trenches</em></span></button>
+  <button class="hud-brand" id="homeBtn" type="button" title="Back to the streets"><img src="/favicon-64.png?v=2" alt="BLOX" width="34" height="34"></button>
   <nav class="hud-tabs" id="links" aria-label="Sections"><a href="#map" data-go="map" class="on">Streets</a><a href="#trade" data-go="trade">Trade</a><a href="#pump" data-go="pump">Drops</a><a href="#trending" data-go="trending">Hot</a><a href="#perps" data-go="perps">Perps</a><a href="#whales" data-go="whales">Most Wanted</a><a href="#hedge" data-go="hedge">Hedge</a><a href="#bag" data-go="bag">Safehouse</a><a href="#overview" data-go="overview">Overview</a><a href="#faq" data-go="faq">Intel</a></nav>
   <b class="nav-title" id="navTitle">Streets</b>
   <div class="nav-r">
     <button class="nav-search" id="navK" type="button" aria-label="Search and commands"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg><span>Search coins, perps, wallets and commands</span><span class="kbd">⌘K</span></button>
-    <span class="nav-gta mono" id="navGta" title="GTA VI release day"><i></i>GTA VI <b>—</b></span>
     <button class="nav-sol mono" id="navSol" type="button" title="SOL perp on Hyperliquid, live"><i></i>SOL <b>—</b></button>
-    <button class="nav-ca mono" id="navCa" type="button" hidden title="Copy the $BLOX contract address"><img src="/logo.png?v=1" alt="" width="20" height="20"><span>CA</span><b class="ca-l" id="navCaL"></b><b class="ca-s" id="navCaS"></b><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M15 9V6.5A2.5 2.5 0 0 0 12.5 4h-6A2.5 2.5 0 0 0 4 6.5v6A2.5 2.5 0 0 0 6.5 15H9"/></svg></button>
+    <button class="nav-ca mono" id="navCa" type="button" hidden title="Copy the $BLOX contract address"><img src="/favicon-64.png?v=2" alt="" width="20" height="20"><span>CA</span><b class="ca-l" id="navCaL"></b><b class="ca-s" id="navCaS"></b><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M15 9V6.5A2.5 2.5 0 0 0 12.5 4h-6A2.5 2.5 0 0 0 4 6.5v6A2.5 2.5 0 0 0 6.5 15H9"/></svg></button>
     <div class="nav-tools">
       
       <button class="nb" id="navAlerts" type="button" title="Price alerts" aria-label="Price alerts"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><em class="badge" id="alertN" hidden>0</em></button>
@@ -111,7 +110,7 @@
 
   <section class="page app" id="terminal" data-page="trade">
     <div class="app-w">
-      <div class="tick-row"><button class="ca-chip mono" id="caChip" type="button" hidden title="Copy the $BLOX contract address"><img src="/logo.png?v=1" alt="" width="18" height="18"><b>$BLOX</b><span id="caChipTxt"></span><em>copy CA</em></button><div class="tickers mono" id="tickers"></div></div>
+      <div class="tick-row"><button class="ca-chip mono" id="caChip" type="button" hidden title="Copy the $BLOX contract address"><img src="/favicon-64.png?v=2" alt="" width="18" height="18"><b>$BLOX</b><span id="caChipTxt"></span><em>copy CA</em></button><div class="tickers mono" id="tickers"></div></div>
       <div class="term" id="term">
         <div class="term-top">
           <label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="text" placeholder="Search a memecoin or paste a mint" autocomplete="off" spellcheck="false"></label>
@@ -320,6 +319,6 @@
 <div class="pal" id="pal" hidden><div class="pal-in" role="dialog" aria-modal="true" aria-label="Search and commands"><label class="pal-q"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg><input id="palQ" type="text" placeholder="Search a coin, or type a command" autocomplete="off" spellcheck="false"><span class="kbd">esc</span></label><div class="pal-list" id="palList"></div></div></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <button class="fs-x mono" id="fsX" type="button">Exit full screen <span class="kbd">Esc</span></button>
-<script type="module" src="/main.js?v=3"></script>
+<script type="module" src="/main.js?v=5"></script>
 </body>
 </html>

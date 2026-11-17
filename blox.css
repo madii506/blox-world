@@ -141,7 +141,8 @@ html.noworld #world{background:var(--vice)}
   padding:8px 10px;border:0;border-radius:12px;background:none;color:#fff;text-align:left;transition:background .15s}
 #hList.anim button{animation:rowIn .5s cubic-bezier(.16,.84,.24,1) backwards;animation-delay:calc(min(var(--i,0),24) * 22ms)}
 #hList button:hover{background:rgba(138,63,226,.3)}
-#hList button img,#hList button>i{grid-area:ic;width:34px;height:34px;border-radius:50%;object-fit:cover;background:#2a1870;box-shadow:0 0 0 1.5px rgba(255,255,255,.2)}
+#hList button img,#hList button>i{grid-area:ic;width:34px;height:34px;border-radius:50%;object-fit:cover;box-shadow:0 0 0 1.5px rgba(255,255,255,.2)}
+#hList button img{background:#2a1870}
 #hList button b{grid-area:sym;font:900 14px/1.1 Inter,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #hList button em{grid-area:chg;font:700 12px/1 var(--mono);font-style:normal;text-align:right}
 #hList button .st{grid-area:st;font-size:10.5px;line-height:1;color:#ffd23f;letter-spacing:.5px}
@@ -383,3 +384,61 @@ a.btn-ghost2{display:grid;place-items:center;text-decoration:none}
 .h-feed{top:210px}
 @media (max-width:760px){.h-rank b{font-size:10px}.h-rank>i{width:50px}.h-rank span{font-size:9.5px}.h-note{top:196px}.h-right .h-rank{order:4}.h-right .h-ca{order:5}}
 @media (prefers-reduced-motion:reduce){.wipe{display:none}}
+
+/* ---------------------------------------------------------------- round four: the gate, the corner logo, likes */
+.gate{position:fixed;inset:0;z-index:44;display:grid;place-items:center;pointer-events:none;
+  background:radial-gradient(ellipse 70% 60% at 50% 52%,rgba(12,7,36,0) 30%,rgba(12,7,36,.42) 100%);transition:opacity .7s ease,transform 1s cubic-bezier(.6,0,.2,1),visibility 0s .9s}
+.g-in{display:grid;justify-items:center;gap:30px;pointer-events:auto}
+.g-logo{width:132px;height:132px;filter:drop-shadow(0 0 34px rgba(138,63,226,.85)) drop-shadow(0 14px 30px rgba(0,0,0,.45));animation:gDrop 1.1s cubic-bezier(.16,.9,.22,1.15) .2s backwards,gFloat 4.5s ease-in-out 1.3s infinite}
+@keyframes gDrop{from{opacity:0;transform:translateY(-40px) scale(.7)}to{opacity:1;transform:none}}
+@keyframes gFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-10px) rotate(-2deg)}}
+.g-go{position:relative;height:68px;padding:0 48px;border:0;border-radius:999px;cursor:pointer;color:#fff;background:var(--vice);overflow:hidden;
+  font:900 25px/1 InterB,Inter,sans-serif;letter-spacing:.03em;text-transform:uppercase;
+  box-shadow:0 18px 56px rgba(255,79,158,.45),0 0 0 1.5px rgba(255,255,255,.35) inset;animation:gRise .9s cubic-bezier(.16,.9,.22,1.1) .7s backwards;transition:transform .2s,box-shadow .2s}
+.g-go span{display:inline-block;transform:skewX(-10deg);text-shadow:0 2px 0 rgba(40,8,80,.35)}
+.g-go::before{content:"";position:absolute;inset:-40% auto -40% -30%;width:30%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-20deg);animation:gShine 2.8s ease-in-out 1.6s infinite}
+.g-go::after{content:"";position:absolute;inset:-6px;border-radius:999px;box-shadow:0 0 0 2px rgba(255,255,255,.55);opacity:0;animation:gRing 2.2s ease-out 1.6s infinite}
+.g-go:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 24px 70px rgba(255,79,158,.6),0 0 0 1.5px rgba(255,255,255,.5) inset}
+@keyframes gRise{from{opacity:0;transform:translateY(24px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes gShine{0%{left:-30%}55%,100%{left:120%}}
+@keyframes gRing{0%{opacity:.8;transform:scale(.96)}100%{opacity:0;transform:scale(1.18)}}
+html:not(.gated) .gate{opacity:0;visibility:hidden;transform:scale(1.08)}
+html:not(.gated) .gate .g-in{pointer-events:none}
+html.gated #hud,html.entering #hud{opacity:0;pointer-events:none}
+html.panel .gate{display:none}
+.cine{display:none}
+
+.h-logo{position:absolute;left:24px;top:20px;width:58px;height:58px;padding:0;border:0;background:none;cursor:pointer;filter:drop-shadow(0 0 16px rgba(138,63,226,.75)) drop-shadow(0 6px 14px rgba(0,0,0,.45));transition:transform .25s cubic-bezier(.16,.9,.22,1.2)}
+.h-logo img{display:block;width:100%;height:100%}
+.h-logo:hover{transform:scale(1.07) rotate(-5deg)}
+.hud-in #hud>.h-logo{animation:hudIn .9s cubic-bezier(.16,.84,.24,1) backwards}
+
+.h-like{position:relative;display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 15px 0 12px;border:0;border-radius:999px;cursor:pointer;color:#fff;
+  background:rgba(12,6,38,.8);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);font:800 13px/1 var(--mono);transition:background .2s,transform .2s}
+.h-like svg{width:19px;height:19px;fill:none;stroke:#fff;stroke-width:2.1;stroke-linejoin:round;transition:fill .2s,stroke .2s,transform .2s}
+.h-like:hover{background:rgba(255,79,158,.28);transform:translateY(-1px)}
+.h-like.on svg{fill:#ff4f9e;stroke:#ff4f9e;filter:drop-shadow(0 0 8px rgba(255,79,158,.8))}
+.h-like.pop svg{animation:likePop .5s cubic-bezier(.16,.9,.22,1.6)}
+@keyframes likePop{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}
+.h-like .heart{position:absolute;left:18px;top:6px;width:14px;height:14px;pointer-events:none;background:#ff4f9e;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21s-8-4.9-8-10.9A4.6 4.6 0 0 1 12 7.2a4.6 4.6 0 0 1 8 2.9C20 16.1 12 21 12 21z'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21s-8-4.9-8-10.9A4.6 4.6 0 0 1 12 7.2a4.6 4.6 0 0 1 8 2.9C20 16.1 12 21 12 21z'/%3E%3C/svg%3E") center/contain no-repeat;
+  animation:heartUp 1.2s ease-out var(--d,0ms) both}
+@keyframes heartUp{0%{opacity:0;transform:translate(0,0) scale(.6)}15%{opacity:1}100%{opacity:0;transform:translate(var(--x,0),-70px) scale(1.1)}}
+
+.hm-h .h-rank{display:flex;align-items:center;gap:9px;margin-top:6px}
+.hm-h .h-rank b{color:#fff}
+.h-rank em{font:700 10.5px/1 var(--mono);font-style:normal;color:var(--mute)}
+.h-right{top:22px}
+.h-row{margin-top:0}
+.h-note{top:100px}
+.h-feed{top:84px}
+@media (max-width:760px){
+  .g-logo{width:104px;height:104px}.g-go{height:60px;padding:0 38px;font-size:21px}
+  .h-logo{left:12px;top:12px;width:46px;height:46px}
+  .h-right{top:12px}.h-right .h-row{margin-top:0}
+  .h-like{height:34px;padding:0 12px 0 10px;font-size:12px}
+  .h-note{top:70px}
+}
+@media (prefers-reduced-motion:reduce){.g-logo,.g-go,.g-go::before,.g-go::after{animation:none}.h-like .heart{display:none}}
+@media (max-width:760px){.h-feed{top:auto}}

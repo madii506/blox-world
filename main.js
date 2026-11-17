@@ -78,9 +78,6 @@ function mood() {
   let up = 0, all = 0; for (const c of coins) { const w = heatOf(c) || 1; all += w; if (c.up) up += w; }
   if (!all) return;
   const m = up / all; if (world) world.setMood(m);
-  const el = $('#hMood'); el.hidden = false; el.style.setProperty('--m', (m * 100).toFixed(1) + '%'); el.classList.toggle('red', m < .5);
-  $('#hMoodV').textContent = Math.round(m * 100) + '% green';
-  $('#hMoodL').textContent = m >= .62 ? 'Euphoria' : m >= .5 ? 'Calm streets' : m >= .38 ? 'Tension' : 'Riots';
 }
 on('perps', P => { perpList = (P.list || []).filter(p => p.oi > 0).sort((a, b) => b.oi - a.oi); if (world) world.setPerps(perpList); if (feedTab === 'perps') drawFeed(); });
 async function loadWhales() {
@@ -134,12 +131,12 @@ function card(it) {
   } else if (it.kind === 'perp') {
     const p = it.perp;
     el.innerHTML = `${X}<div class="hc-h">${pava(p)}<div><b>${esc(p.name)}</b><span>Perp on Hyperliquid · up to ${p.maxLev}x</span></div><em><b class="${cls(p.chg)}">${pct(p.chg, 1)}</b><small>24h</small></em></div>
-      <div class="hc-g">${cell('Mark', '$' + px(p.mark))}${cell('Funding', fundStr(p), p.apr > 0 ? 'up' : p.apr < 0 ? 'dn' : '')}${cell('Open interest', usd(p.oi))}${cell('24h volume', usd(p.vol))}${cell('Max leverage', p.maxLev + 'x')}${cell('Who pays', p.fund > 0 ? 'longs pay' : p.fund < 0 ? 'shorts pay' : '—')}</div>
+      <div class="hc-g">${cell('Mark', px(p.mark))}${cell('Funding', fundStr(p), p.apr > 0 ? 'up' : p.apr < 0 ? 'dn' : '')}${cell('Open interest', usd(p.oi))}${cell('24h volume', usd(p.vol))}${cell('Max leverage', p.maxLev + 'x')}${cell('Who pays', p.fund > 0 ? 'longs pay' : p.fund < 0 ? 'shorts pay' : '—')}</div>
       <div class="hc-a"><button class="btn-steal" data-a="long" type="button">Long</button><button class="btn-short" data-a="short" type="button">Short</button><button class="btn-ghost2" data-a="board" type="button">Board</button></div>`;
   } else if (it.kind === 'whale') {
     const w = it.whale, rank = whales.findIndex(x => x.a === w.a) + 1;
     el.innerHTML = `${X}<div class="hc-h"><i class="ava whale big">${rank || 'W'}</i><div><b>${esc(wname(w))}</b><span>${rank ? `Whale #${rank} on Hyperliquid today` : 'Hyperliquid trader'}</span></div><em><b class="${cls(w.pnl)}">${money(w.pnl)}</b><small>today</small></em></div>
-      <div class="hc-g">${cell('Account', usd(w.v))}${cell('P&L today', money(w.pnl), cls(w.pnl))}${cell('ROI today', pct(w.roi * 100, 1), cls(w.roi))}${cell('Volume today', usd(w.vlm))}${cell('Address', short(w.a))}${cell('Rank', rank ? '#' + rank : '—')}</div>
+      <div class="hc-g">${cell('Account', usd(w.v))}${cell('P&L today', money(w.pnl), cls(w.pnl))}${cell('ROI today', pct(w.roi * 100, 1), cls(w.roi))}${cell('Volume today', w.vlm ? usd(w.vlm) : '—')}${cell('Address', short(w.a))}${cell('Rank', rank ? '#' + rank : '—')}</div>
       <div class="hc-a"><button class="btn-steal" data-a="track" type="button">Track them</button><button class="btn-ghost2" data-a="copyw" type="button">Copy address</button><a class="btn-ghost2" href="https://app.hyperliquid.xyz/explorer/address/${esc(w.a)}" target="_blank" rel="noopener">Explorer ↗</a></div>`;
   } else if (it.kind === 'mine') {
     const r = it.row;
@@ -212,9 +209,9 @@ function runMission(m) {
 const nt = $('#hNote'), urgent = []; let noteI = 0, shown = null;
 function push(m) { urgent.push(m); if (urgent.length > 4) urgent.shift(); }
 function note() {
-  if (html.classList.contains('panel') || html.classList.contains('cine') || document.hidden || pinned || !$('#hMissions').hidden) return;
-  const L = missions(), m = urgent.shift() || L[noteI++ % Math.max(1, L.length)]; if (!m) return; const t = mtext(m); if (!t) return;
-  shown = m; nt.innerHTML = `${mava(m)}<span><b>${esc(t.t)}</b><em class="${t.k === 'up' ? 'up' : t.k === 'dn' || t.k === 'cop' ? 'dn' : ''}">${esc(t.s)}</em><small>${esc(t.go)} ›</small></span>`;
+  if (html.classList.contains('panel') || html.classList.contains('gated') || !entered || document.hidden || pinned || !$('#hMissions').hidden) return;
+  const L = missions().filter(x => x.type !== 'whale'), m = urgent.shift() || L[noteI++ % Math.max(1, L.length)]; if (!m) return; const t = mtext(m); if (!t) return;
+  shown = m; nt.innerHTML = `${mava(m)}<span><b>${esc(t.t)}</b><em class="${t.k === 'up' ? 'up' : t.k === 'dn' || t.k === 'cop' ? 'dn' : ''}">${esc(t.s)}</em></span><i class="nt-go">›</i>`;
   nt.className = 'h-note k-' + t.k; nt.hidden = false; void nt.offsetWidth; nt.classList.add('in');
   clearTimeout(note.t); note.t = setTimeout(() => nt.classList.remove('in'), 5600);
 }
@@ -273,25 +270,33 @@ setInterval(() => {
   const sig = rows.map(r => r.mint + ':' + Math.round(r.usd)).join('|'); if (sig === garageSig) return; garageSig = sig; world.setGarage(rows);
 }, 4000);
 
-// ---------------------------------------------------------------- opening: bars and a fade while the sign lights, then the HUD
-const cine = !reduced() && startPage() === 'map';
-if (cine) html.classList.add('cine'); else html.classList.remove('cine');
-function endCine() { html.classList.remove('cine'); html.classList.add('hud-in'); }
-$('#world').addEventListener('pointerdown', () => { if (html.classList.contains('cine')) endCine(); });
+// ---------------------------------------------------------------- the gate: the whole city from above and one button; Enter flies you down into the streets
+const gated = startPage() === 'map';
+let entered = !gated;
+html.classList.toggle('gated', gated);
+function enterWorld() {
+  if (entered) return; entered = true;
+  html.classList.add('entering'); html.classList.remove('gated');
+  if (world) world.enter();
+  setTimeout(() => { html.classList.add('hud-in'); html.classList.remove('entering'); }, reduced() ? 0 : 1700);
+  setTimeout(() => { note(); }, reduced() ? 2500 : 7000);
+}
+$('#enterGo').onclick = enterWorld;
+addEventListener('keydown', e => { if (!entered && (e.key === 'Enter' || e.key === ' ') && $('#modal').hidden && $('#pal').hidden) { e.preventDefault(); enterWorld(); } });
 function startWorld() {
-  import('./world.js?v=3').then(m => {
+  import('./world.js?v=5').then(m => {
     world = m.startWorld($('#world'), {
-      reduced: reduced(), onHover: tip, onFrame: drawRadar,
+      reduced: reduced(), gate: !entered, onHover: tip, onFrame: drawRadar,
       onPick: it => { $('#hTip').hidden = true; if (it && it.kind === 'safehouse') { openWallets(); return; } card(it && it.kind ? it : null); },
     });
-    if (cine) setTimeout(endCine, 3300); else html.classList.add('hud-in');
+    if (entered) html.classList.add('hud-in');
     if (html.classList.contains('panel')) setTimeout(() => { if (html.classList.contains('panel')) world.pause(true); }, 900);   // one frame of the city behind the page
     if (api.perps.list.length) { perpList = api.perps.list.filter(p => p.oi > 0).sort((a, b) => b.oi - a.oi); world.setPerps(perpList); }
     loadCoins(); setInterval(loadCoins, 30000);
     loadWhales(); setInterval(loadWhales, 5 * 60e3);
-  }).catch(e => { console.error(e); html.classList.add('noworld'); endCine(); loadCoins(); loadWhales(); });
+  }).catch(e => { console.error(e); html.classList.add('noworld'); enterWorld(); loadCoins(); loadWhales(); });
 }
-setTimeout(() => { note(); setInterval(note, 8000); }, cine ? 5600 : 2800);
+setInterval(note, 8000);
 
 // ---------------------------------------------------------------- the phone: every page is an app that opens over the city
 const phone = $('#phone');
@@ -311,16 +316,8 @@ $('#hCoins').onclick = () => html.classList.toggle('feed-open');
 $('#hConnect').onclick = () => openWallets();
 $('#hSearch').onclick = () => openPalette();
 $('#homeBtn').onclick = () => go('map');
+$('#hLogo').onclick = () => { card(null); if (world) world.overview(); };
 addEventListener('keydown', e => { if (e.key === 'Escape' && html.classList.contains('panel') && $('#modal').hidden && $('#pal').hidden) go('map'); });
-// the money counter: your bag in dollars once a wallet is connected, counting up like the game
-let cashShown = 0;
-setInterval(() => {
-  const b = window.__bux && window.__bux.bag ? window.__bux.bag() : null, v = b && W.sol.address ? b.tot || 0 : 0;
-  if (Math.abs(v - cashShown) < .5) return; const from = cashShown, t0 = performance.now(); cashShown = v;
-  const tick = now => { const k = Math.min(1, (now - t0) / 900), x = from + (v - from) * (1 - Math.pow(1 - k, 3)); $('#hCash').textContent = '$' + Math.round(x).toLocaleString('en-US'); if (k < 1) requestAnimationFrame(tick); };
-  requestAnimationFrame(tick);
-}, 2000);
-
 // ---------------------------------------------------------------- nav: phone sheet, X, CA
 const mb = $('#menuBtn'), ms = $('#mSheet');
 mb.addEventListener('click', () => { ms.hidden = !ms.hidden; mb.setAttribute('aria-expanded', String(!ms.hidden)); });
@@ -494,14 +491,18 @@ function nwDraw() {
 }
 $('#bagConnect').onclick = () => openWallets();
 on('sol', () => { if (page === 'bag') nwDraw(); }); on('evm', () => { if (page === 'bag') nwDraw(); });
-// GTA VI comes out on 19 November 2026
-(() => {
-  const at = new Date('2026-11-19T00:00:00').getTime(), els = [$('#navGta b'), $('#hGta b')];
-  const tick = () => { const s = Math.floor((at - Date.now()) / 1000); if (s <= 0) { els.forEach(e => e.textContent = 'OUT NOW'); $('#navGta').classList.add('out'); $('#hGta').classList.add('out'); return; }
-    const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
-    const t = `${d}d ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}`; els.forEach(e => e.textContent = t); };
-  tick(); setInterval(tick, 1000);
-})();
+// ---------------------------------------------------------------- likes: one per browser; shared through /api/like when the database is connected
+const LK = $('#hLike');
+let likes = null, liked = !!store.get('blox:liked', false);
+function drawLike() { LK.classList.toggle('on', liked); $('#hLikeN').textContent = likes == null ? (liked ? '1' : '0') : likes >= 1e4 ? (likes / 1e3).toFixed(1) + 'K' : likes.toLocaleString('en-US'); }
+async function loadLikes() { try { const r = await fetch('/api/like', { cache: 'no-store' }); if (!r.ok) throw 0; const d = await r.json(); if (typeof d.count === 'number') likes = d.count; } catch {} drawLike(); }
+LK.onclick = async () => {
+  if (!reduced()) { LK.classList.remove('pop'); void LK.offsetWidth; LK.classList.add('pop'); for (let k = 0; k < 6; k++) { const h = document.createElement('i'); h.className = 'heart'; h.style.setProperty('--x', (Math.random() * 60 - 30).toFixed(0) + 'px'); h.style.setProperty('--d', (k * 70) + 'ms'); LK.appendChild(h); setTimeout(() => h.remove(), 1300); } }
+  if (liked) return;
+  liked = true; store.set('blox:liked', true); if (likes != null) likes++; drawLike();
+  try { const r = await fetch('/api/like', { method: 'POST' }); if (r.ok) { const d = await r.json(); if (typeof d.count === 'number') { likes = d.count; drawLike(); } } } catch {}
+};
+loadLikes(); setInterval(loadLikes, 60000);
 
 // ---------------------------------------------------------------- respect: every trade you finish here is a job, jobs climb the ranks
 const RANKS = [[0, 'Rookie'], [1, 'Street hustler'], [5, 'Shot caller'], [15, 'Lieutenant'], [40, 'Kingpin'], [100, 'Legend of Vice']];
