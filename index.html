@@ -6,9 +6,9 @@
 <title>BLOX</title>
 <meta name="description" content="The First Open-World Trenches in GTA. Every coin on Solana is a car on the streets. Steal the pumps, follow the whales, hedge the bags.">
 <meta name="theme-color" content="#2f3fe4">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=1">
-<link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png?v=1">
-<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png?v=1">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=2">
+<link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png?v=2">
+<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png?v=2">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=1">
 <meta property="og:type" content="website">
 <meta property="og:title" content="BLOX">
@@ -20,44 +20,49 @@
 <meta name="twitter:image" content="/og.png?v=1">
 <link rel="preload" href="/inter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/Inter-Black.otf" as="font" type="font/otf" crossorigin>
-<link rel="modulepreload" href="/world.js?v=1">
+<link rel="modulepreload" href="/world.js?v=3">
 <link rel="stylesheet" href="/app.css?v=1">
-<link rel="stylesheet" href="/blox.css?v=1">
+<link rel="stylesheet" href="/blox.css?v=3">
+<script>try{var h=location.hash.slice(1),st=JSON.parse(localStorage.getItem('bux:set')||'{}');if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&(!h||h==='map')&&!/[?&]t=/.test(location.search)&&st.intro!==false)document.documentElement.classList.add('cine')}catch(e){}</script>
 </head>
 <body>
 <!-- the world: a voxel Vice City at war. no landing page, the site opens here -->
 <canvas id="world" aria-label="BLOX: a voxel city where every live coin is a car"></canvas>
+<div class="cine" id="cine" aria-hidden="true"><i></i><i></i></div>
 <div id="hud">
-  <div class="h-brand"><img src="/favicon-64.png?v=1" alt="" width="44" height="44"><div><b>BLOX</b><span>The First Open-World Trenches in GTA</span></div></div>
+  <div class="h-brand"><img src="/logo.png?v=1" alt="" width="44" height="44"><div><b>BLOX</b><span>The First Open-World Trenches in GTA</span></div></div>
+  <button class="h-note" id="hNote" type="button" hidden></button>
   <div class="h-right">
-    <div class="h-wanted" id="hWanted" title="Heat: how hard the trenches are trading right now"><i>★</i><i>★</i><i>★</i><i>★</i><i>★</i></div>
     <div class="h-cash" title="Your bag, once a wallet is connected"><b id="hCash">$0</b></div>
+    <div class="h-rank" id="hRank"><b id="hRankN">Rookie</b><i><i></i></i><span id="hRankJ">0 jobs</span></div>
+    <div class="h-mood" id="hMood" hidden title="How much of the last 5 minutes of trading went into coins that are up"><div class="hm-top"><b id="hMoodL">—</b><span id="hMoodV">—</span></div><i class="hm-bar"><i></i></i></div>
     <div class="h-row"><span class="h-gta" id="hGta">GTA VI <b>—</b></span><button class="h-ic" id="hSearch" type="button" aria-label="Search coins and commands"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg></button><button class="h-connect" id="hConnect" type="button"><i class="dot"></i><span>Connect</span></button></div>
     <button class="h-ca" id="hCa" type="button" hidden title="Copy the $BLOX contract address"><span>CA</span><b id="hCaTxt"></b></button>
   </div>
   <div class="h-radar"><canvas id="radar" width="400" height="400"></canvas><i class="h-n">N</i></div>
-  <aside class="h-feed" id="hFeed"><p class="h-fh"><i></i>On the streets <em id="hCount">—</em></p><div id="hList"><p class="h-empty">Scanning the streets…</p></div></aside>
+  <aside class="h-feed" id="hFeed"><p class="h-fh"><i></i>Live on the streets <em id="hCount">—</em></p><div class="h-tabs" id="hTabs" role="tablist"><button type="button" data-t="hot" class="on">Hot</button><button type="button" data-t="new">New</button><button type="button" data-t="perps">Harbor</button><button type="button" data-t="whales">Whales</button></div><div id="hList"><p class="h-empty">Scanning the streets…</p></div></aside>
   <div class="h-tip" id="hTip" hidden></div>
   <div class="h-card" id="hCard" hidden></div>
+  <div class="h-missions" id="hMissions" hidden><div class="hm-in" role="dialog" aria-label="Missions"><div class="hm-h"><b>Missions</b><span>live from the trenches</span><button class="hc-x" type="button" data-a="x" aria-label="Close">✕</button></div><div class="hm-list" id="hmList"></div></div></div>
   <button class="h-coins" id="hCoins" type="button">Coins</button>
   <button class="h-phone" id="hPhone" type="button" aria-label="Open the phone"><svg viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg><span>Phone</span></button>
-  <div class="phone" id="phone" hidden><div class="ph-top"><b>iBLOX</b><span id="phClock">--:--</span></div><div class="ph-apps"><a href="#map" data-go="map" style="--c:#2f3fe4"><i>S</i><span>Streets</span></a><a href="#trade" data-go="trade" style="--c:#8a3fe2"><i>T</i><span>Trade</span></a><a href="#pump" data-go="pump" style="--c:#ff4f9e"><i>D</i><span>Drops</span></a><a href="#trending" data-go="trending" style="--c:#ff7a3a"><i>H</i><span>Hot</span></a><a href="#perps" data-go="perps" style="--c:#2ee6a6"><i>P</i><span>Perps</span></a><a href="#whales" data-go="whales" style="--c:#ffd23f"><i>M</i><span>Most Wanted</span></a><a href="#hedge" data-go="hedge" style="--c:#5fc8ff"><i>H</i><span>Hedge</span></a><a href="#bag" data-go="bag" style="--c:#c8a8ff"><i>S</i><span>Safehouse</span></a><a href="#overview" data-go="overview" style="--c:#ff9ec9"><i>O</i><span>Overview</span></a><a href="#faq" data-go="faq" style="--c:#9ff0d0"><i>I</i><span>Intel</span></a></div><p class="ph-foot">Every app opens over the city. Streets brings you back.</p></div>
-  <p class="h-hint">Drag to look around · scroll to zoom · click a coin to follow it</p>
+  <div class="phone" id="phone" hidden><div class="ph-top"><b>iBLOX</b><span id="phClock">--:--</span></div><div class="ph-apps"><button type="button" data-app="missions" style="--c:#ffd23f"><i><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></i><span>Missions</span></button><a href="#map" data-go="map" style="--c:#2f3fe4"><i><svg viewBox="0 0 24 24"><path d="M12 21s-6.5-5.9-6.5-11a6.5 6.5 0 0 1 13 0c0 5.1-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg></i><span>Streets</span></a><a href="#trade" data-go="trade" style="--c:#8a3fe2"><i><svg viewBox="0 0 24 24"><path d="M7 3v4M7 17v4M17 6v3M17 15v4"/><rect x="4.5" y="7" width="5" height="10" rx="1.2"/><rect x="14.5" y="9" width="5" height="6" rx="1.2"/></svg></i><span>Trade</span></a><a href="#pump" data-go="pump" style="--c:#ff4f9e"><i><svg viewBox="0 0 24 24"><path d="M13.2 2.5 5 13.6h5.6l-1 7.9 8.4-11.3h-5.7z"/></svg></i><span>Drops</span></a><a href="#trending" data-go="trending" style="--c:#ff7a3a"><i><svg viewBox="0 0 24 24"><path d="M12 21.5c3.9 0 6.6-2.7 6.6-6.4 0-4-3-6.1-4.2-9.4-.3-.8-1.3-.9-1.7-.2-.9 1.6-1.2 3.1-2.7 4.4-.6-1.2-1.4-2-2-2.3-.6-.3-1.2.1-1.3.7-.3 1.4-1.2 3.2-1.2 6.6 0 3.8 2.6 6.6 6.5 6.6z"/></svg></i><span>Hot</span></a><a href="#perps" data-go="perps" style="--c:#2ee6a6"><i><svg viewBox="0 0 24 24"><path d="M8 20V5M4.5 8.5 8 5l3.5 3.5M16 4v15M12.5 15.5 16 19l3.5-3.5"/></svg></i><span>Perps</span></a><a href="#whales" data-go="whales" style="--c:#ffd23f"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.4"/><path d="M12 2v4.5M12 17.5V22M2 12h4.5M17.5 12H22"/></svg></i><span>Most Wanted</span></a><a href="#hedge" data-go="hedge" style="--c:#5fc8ff"><i><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5.5c0 4.4 3 8.2 7 9.5 4-1.3 7-5.1 7-9.5V6z"/><path d="m9 12 2.2 2.2L15.5 10"/></svg></i><span>Hedge</span></a><a href="#bag" data-go="bag" style="--c:#c8a8ff"><i><svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v9H4z"/><path d="M10 20v-5h4v5"/></svg></i><span>Safehouse</span></a><a href="#overview" data-go="overview" style="--c:#ff9ec9"><i><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg></i><span>Overview</span></a><a href="#faq" data-go="faq" style="--c:#9ff0d0"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.6v.2"/></svg></i><span>Intel</span></a></div></div>
 </div>
 <div class="flash" id="flash" aria-hidden="true"></div>
+<div class="wipe" id="wipe" aria-hidden="true"></div>
 
 <!-- the terminal site -->
 <div id="app">
 
 <header id="nav" class="hud">
-  <button class="hud-brand" id="homeBtn" type="button" title="Back to the streets"><img src="/favicon-64.png?v=1" alt="" width="30" height="30"><span><b>BLOX</b><em>The trenches</em></span></button>
+  <button class="hud-brand" id="homeBtn" type="button" title="Back to the streets"><img src="/logo.png?v=1" alt="" width="30" height="30"><span><b>BLOX</b><em>The trenches</em></span></button>
   <nav class="hud-tabs" id="links" aria-label="Sections"><a href="#map" data-go="map" class="on">Streets</a><a href="#trade" data-go="trade">Trade</a><a href="#pump" data-go="pump">Drops</a><a href="#trending" data-go="trending">Hot</a><a href="#perps" data-go="perps">Perps</a><a href="#whales" data-go="whales">Most Wanted</a><a href="#hedge" data-go="hedge">Hedge</a><a href="#bag" data-go="bag">Safehouse</a><a href="#overview" data-go="overview">Overview</a><a href="#faq" data-go="faq">Intel</a></nav>
   <b class="nav-title" id="navTitle">Streets</b>
   <div class="nav-r">
     <button class="nav-search" id="navK" type="button" aria-label="Search and commands"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg><span>Search coins, perps, wallets and commands</span><span class="kbd">⌘K</span></button>
     <span class="nav-gta mono" id="navGta" title="GTA VI release day"><i></i>GTA VI <b>—</b></span>
     <button class="nav-sol mono" id="navSol" type="button" title="SOL perp on Hyperliquid, live"><i></i>SOL <b>—</b></button>
-    <button class="nav-ca mono" id="navCa" type="button" hidden title="Copy the $BLOX contract address"><img src="/favicon-64.png?v=1" alt="" width="20" height="20"><span>CA</span><b class="ca-l" id="navCaL"></b><b class="ca-s" id="navCaS"></b><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M15 9V6.5A2.5 2.5 0 0 0 12.5 4h-6A2.5 2.5 0 0 0 4 6.5v6A2.5 2.5 0 0 0 6.5 15H9"/></svg></button>
+    <button class="nav-ca mono" id="navCa" type="button" hidden title="Copy the $BLOX contract address"><img src="/logo.png?v=1" alt="" width="20" height="20"><span>CA</span><b class="ca-l" id="navCaL"></b><b class="ca-s" id="navCaS"></b><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M15 9V6.5A2.5 2.5 0 0 0 12.5 4h-6A2.5 2.5 0 0 0 4 6.5v6A2.5 2.5 0 0 0 6.5 15H9"/></svg></button>
     <div class="nav-tools">
       
       <button class="nb" id="navAlerts" type="button" title="Price alerts" aria-label="Price alerts"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><em class="badge" id="alertN" hidden>0</em></button>
@@ -106,7 +111,7 @@
 
   <section class="page app" id="terminal" data-page="trade">
     <div class="app-w">
-      <div class="tick-row"><button class="ca-chip mono" id="caChip" type="button" hidden title="Copy the $BLOX contract address"><img src="/favicon-64.png?v=1" alt="" width="18" height="18"><b>$BLOX</b><span id="caChipTxt"></span><em>copy CA</em></button><div class="tickers mono" id="tickers"></div></div>
+      <div class="tick-row"><button class="ca-chip mono" id="caChip" type="button" hidden title="Copy the $BLOX contract address"><img src="/logo.png?v=1" alt="" width="18" height="18"><b>$BLOX</b><span id="caChipTxt"></span><em>copy CA</em></button><div class="tickers mono" id="tickers"></div></div>
       <div class="term" id="term">
         <div class="term-top">
           <label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="text" placeholder="Search a memecoin or paste a mint" autocomplete="off" spellcheck="false"></label>
@@ -284,8 +289,8 @@
     <div class="wrap narrow">
       <header class="pg-h"><div><p class="eyebrow mono">FAQ</p><h2 class="h2">Questions players ask.</h2></div></header>
       <div class="faq" id="faqList">
-        <details open><summary>What is BLOX?</summary><p>The first open-world trenches in GTA: a live city where every Solana memecoin is a car on the streets. Steal one (buy it through Jupiter) in one signature, set limit orders, hedge with perps on Hyperliquid, follow the most wanted traders, set alerts and track your bag, all from one screen.</p></details>
-        <details><summary>What is the map?</summary><p>The first screen of the terminal. Hot coins (Jupiter's 5-minute trending), fresh launches and organic movers drive the streets as cars. Speed follows trades, colour follows the 5-minute move, wanted stars follow heat. Hover a car to see the coin, click it to buy. The map refreshes every 30 seconds and goes quiet, not fake, when the data source is down.</p></details>
+        <details open><summary>What is BLOX?</summary><p>The first open-world trenches in GTA: a live voxel city where the Solana trenches play out in real time. Coins drive the streets, perps sail the harbor and whales fly overhead. Steal a coin (buy it through Jupiter) in one signature, set limit orders, hedge with perps on Hyperliquid, take missions, follow the most wanted traders and park your bag in your own safehouse, all from one screen.</p></details>
+        <details><summary>What is the city made of?</summary><p>Live data, nothing staged. Cars are the hottest Solana coins (Jupiter's 5-minute trending): green when up, pink when down, faster when busier. Gold cars with a NEW tag are fresh launches. Every green or pink pop off a car is a trade at that coin's real 5-minute pace. The boats in the harbor are the biggest Hyperliquid perps, sized by open interest, with sails coloured by the 24-hour move. The helicopters carry the day's top Hyperliquid traders. The billboards on the tallest towers show the biggest coins on the streets. The police chase whichever trending coin is dumping hardest. Everything refreshes on its own, and when a feed is down that part of the city goes quiet instead of making things up.</p></details><details><summary>What do the mood meter, fireworks and rain mean?</summary><p>The mood meter is the share of the last 5 minutes of trading that went into coins that are up. When the trenches are green, pumping coins fire off fireworks and the sky warms up; when they turn red there are more explosions and lightning, the sky darkens and below about 38% green it starts to rain.</p></details><details><summary>What are missions and respect?</summary><p>Missions are live calls from the feeds: the biggest pump, the biggest dump, the coin the cops are chasing, the busiest coin, a new drop, a big perp move, extreme funding and the whale of the day. Open them from the phone or press M, and tap one to jump to it. Every swap or hedge you finish here counts as a job, and jobs move you up the ranks from Rookie to Legend of Vice. Respect is kept in this browser only.</p></details><details><summary>What is the safehouse?</summary><p>Connect a Solana wallet and your bag parks in the safehouse yard: one car per coin you hold (up to ten), with its value, plus a beam of light so you can find it. Tap a car to cash out, hedge or open its chart. Nothing moves without your signature.</p></details><details><summary>How do I get around?</summary><p>Drag to look around, scroll or pinch to zoom, tap any car, boat, billboard or helicopter to follow it and open its card. The phone (bottom right, or the ↑ key) holds every terminal page as an app; Streets brings you back. Leave the city alone for a bit and the camera starts a tour on its own.</p></details>
         <details><summary>Is BLOX part of GTA, Rockstar or Take-Two?</summary><p>No. BLOX is a fan-made memecoin and trading terminal. It is not affiliated with, endorsed by or connected to Rockstar Games or Take-Two Interactive. GTA is their trademark.</p></details>
         <details><summary>Does BLOX hold my money?</summary><p>No. Your SOL and coins stay in your Solana wallet and every swap is signed there. Your margin stays in your own Hyperliquid account. There is no BLOX account and no deposit to us.</p></details>
         <details><summary>How do trades work?</summary><p>Swaps go through Jupiter, which finds the best route across Solana, pump.fun curves included. You see the quote, your wallet signs once, and Jupiter sends it. Perps go straight to Hyperliquid.</p></details>
@@ -302,7 +307,7 @@
     </div>
   </section>
 </main>
-<nav id="tabbar" aria-label="Sections"><a href="#map" data-go="map"><svg viewBox="0 0 24 24"><path d="M3.5 6.5 9 4l6 2.5L20.5 4v13.5L15 20l-6-2.5-5.5 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg><span>Streets</span></a><a href="#trade" data-go="trade"><svg viewBox="0 0 24 24"><path d="M7 3v4M7 17v4M17 6v3M17 15v4"/><rect x="4.5" y="7" width="5" height="10" rx="1.2"/><rect x="14.5" y="9" width="5" height="6" rx="1.2"/></svg><span>Trade</span></a><a href="#pump" data-go="pump"><svg viewBox="0 0 24 24"><path d="M13.2 2.5 5 13.6h5.6l-1 7.9 8.4-11.3h-5.7z"/></svg><span>Drops</span></a><a href="#whales" data-go="whales"><svg viewBox="0 0 24 24"><path d="m12 3 2.6 5.5 6 .8-4.4 4.2 1.1 6L12 16.6 6.7 19.5l1.1-6-4.4-4.2 6-.8z"/></svg><span>Wanted</span></a><button id="tabMore" type="button"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>More</span></button></nav>
+<nav id="tabbar" aria-label="Sections"><a href="#map" data-go="map"><svg viewBox="0 0 24 24"><path d="M3.5 6.5 9 4l6 2.5L20.5 4v13.5L15 20l-6-2.5-5.5 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg><span>Streets</span></a><a href="#trade" data-go="trade"><svg viewBox="0 0 24 24"><path d="M7 3v4M7 17v4M17 6v3M17 15v4"/><rect x="4.5" y="7" width="5" height="10" rx="1.2"/><rect x="14.5" y="9" width="5" height="6" rx="1.2"/></svg><span>Trade</span></a><a href="#pump" data-go="pump"><svg viewBox="0 0 24 24"><path d="M13.2 2.5 5 13.6h5.6l-1 7.9 8.4-11.3h-5.7z"/></svg><span>Drops</span></a><a href="#whales" data-go="whales"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.4"/><path d="M12 2v4.5M12 17.5V22M2 12h4.5M17.5 12H22"/></svg><span>Wanted</span></a><button id="tabMore" type="button"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>More</span></button></nav>
 <div class="tape" id="tape" aria-label="Live meme perps on Hyperliquid"><div class="tape-in" id="tapeIn"></div></div>
 </div>
 
@@ -315,6 +320,6 @@
 <div class="pal" id="pal" hidden><div class="pal-in" role="dialog" aria-modal="true" aria-label="Search and commands"><label class="pal-q"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg><input id="palQ" type="text" placeholder="Search a coin, or type a command" autocomplete="off" spellcheck="false"><span class="kbd">esc</span></label><div class="pal-list" id="palList"></div></div></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <button class="fs-x mono" id="fsX" type="button">Exit full screen <span class="kbd">Esc</span></button>
-<script type="module" src="/main.js?v=1"></script>
+<script type="module" src="/main.js?v=3"></script>
 </body>
 </html>
