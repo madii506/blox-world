@@ -101,7 +101,10 @@ async function loadTrending() {
   if (h.status === 'fulfilled') { const L = (h.value || []).filter(isPump).filter(t => !BAD.test(t.symbol + ' ' + t.name)), hm = Math.max(1, ...L.map(heatOf)); F.hot = L.slice(0, 30).map(t => shape(t, 'hot', hm)); live.hot = Date.now(); }
   if (t.status === 'fulfilled') { const L = (t.value || []).filter(isPump).filter(t => !BAD.test(t.symbol + ' ' + t.name)), hm = Math.max(1, ...L.map(heatOf)); F.trending = L.slice(0, 30).map(t => shape(t, 'trending', hm)); live.trend = Date.now(); if (world && world.setBanner && F.trending[0]) world.setBanner(F.trending[0]); }
   mood(); paint();
+  // a rate-limited read (Jupiter answers a burst with 429) is tried again in a few seconds, not in 30
+  if (h.status === 'fulfilled' && t.status === 'fulfilled') trendRetry = 0; else if (trendRetry < 6) { trendRetry++; setTimeout(loadTrending, 3000 + trendRetry * 2500); }
 }
+let trendRetry = 0;
 // the mood of the trenches: how much of the last 5 minutes of trading went into hot coins that are up
 let moodV = null;
 function mood() {

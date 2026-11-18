@@ -80,7 +80,16 @@ const tokMap = t => t && ({
   twitter: t.twitter, telegram: t.telegram, website: t.website, dev: t.dev, circ: t.circSupply, total: t.totalSupply, program: t.tokenProgram, fdv: t.fdv,
   created: (t.firstPool && t.firstPool.createdAt) || t.createdAt, graduated: t.graduatedAt, tags: t.tags || [], organicLabel: t.organicScoreLabel,
 });
-export const trending = (tf = '1h', limit = 40) => j(`${JUP}/tokens/v2/toptrending/${tf}?limit=${limit}`).then(a => a.map(tokMap));
+// one shared read per timeframe (every page asks for trending at load; Jupiter rate-limits a burst), reused for 20s
+const trendC = new Map();
+export function trending(tf = '1h', limit = 40) {
+  let c = trendC.get(tf);
+  if (!c || Date.now() - c.at > 20000) {
+    const p = j(`${JUP}/tokens/v2/toptrending/${tf}?limit=100`).then(a => a.map(tokMap));
+    c = { at: Date.now(), p }; trendC.set(tf, c); p.catch(() => { if (trendC.get(tf) === c) trendC.delete(tf); });
+  }
+  return c.p.then(a => a.slice(0, limit));
+}
 export const recent = (limit = 40) => j(`${JUP}/tokens/v2/recent?limit=${limit}`).then(a => a.map(tokMap));
 export const topOrganic = (tf = '1h', limit = 40) => j(`${JUP}/tokens/v2/toporganicscore/${tf}?limit=${limit}`).then(a => a.map(tokMap));
 export const openOrders = user => info({ type: 'frontendOpenOrders', user });
