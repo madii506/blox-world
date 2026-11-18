@@ -39,7 +39,7 @@ addEventListener('hashchange', () => { const p = location.hash.slice(1); if (PAG
 let booted = false;
 const startPage = () => { const h = location.hash.slice(1); return PAGES.includes(h) ? h : h === 'market' ? 'market' : new URLSearchParams(location.search).has('t') || T.getSet().intro === false ? 'trade' : 'map'; };
 // ---------------------------------------------------------------- the world: a gate, a story you scroll through, then the city is yours
-// every live feed becomes part of the city: pump.fun coins drive the streets (new pairs in gold, migrated in cyan, hot and
+// every live feed becomes part of the city: pump.fun coins walk the streets as characters (new pairs in gold, migrated in cyan, hot and
 // trending green or pink by their move), perps sail the harbor, whales fly the helicopters, the biggest coins hold the
 // billboards, the market's mood sets fireworks, riots and rain, and real pump.fun events and X's crypto trends pop up as bubbles.
 let world = null, pinned = null, feedTab = 'new', chasedMint = null;
@@ -498,7 +498,7 @@ addEventListener('pointermove', e => {
 
 // ---------------------------------------------------------------- start: the world module, then every feed
 function startWorld() {
-  import('./world.js?v=16').then(m => {
+  import('./world.js?v=17').then(m => {
     world = m.startWorld($('#world'), {
       reduced: reduced(), gate: !entered, onHover: tip, onFrame: w => { drawRadar(w); drawDrive(w); }, onWheel: () => roam(),
       onPick: it => { $('#hTip').hidden = true; if (it && it.kind === 'safehouse') { openWallets(); return; } if (!html.classList.contains('roam')) { if (it && it.kind) { roam(); setTimeout(() => card(it), 400); } return; } card(it && it.kind ? it : null); },
